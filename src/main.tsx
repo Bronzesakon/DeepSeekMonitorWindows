@@ -327,7 +327,7 @@ function DashboardPanel({
         </div>
         <div className="header-actions">
           <button aria-label="刷新" onClick={onRefresh}>
-            <RefreshCw size={22} />
+            <RefreshCw size={18} />
           </button>
           <div className="skin-menu-wrap">
             <button
@@ -336,11 +336,11 @@ function DashboardPanel({
               title={theme === "dark" ? "Switch to light" : "Switch to dark"}
               onClick={toggleTheme}
             >
-              <Shirt size={21} />
+              <Shirt size={18} />
             </button>
           </div>
           <button aria-label="设置" onClick={onSettings}>
-            <Settings size={23} />
+            <Settings size={18} />
           </button>
           <button aria-label="关闭" onClick={onClose}>
             <X size={25} />

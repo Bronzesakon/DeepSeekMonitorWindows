@@ -3,16 +3,17 @@
   color: var(--text-strong);
   --fg: 246, 239, 222;
   --text-strong: rgba(255, 255, 255, 0.92);
-  --brand: #4d6bfe;
-  --brand-light: #6b85ff;
-  --flash: #4091ff;
-  --pro: #da38f0;
-  --orange: #ff9c2b;
+  --brand: #FFFFFF;
+  --brand-fg: #111111;
+  --brand-light: #6B9FFF;
+  --flash: #1F6C9F;
+  --pro: #7C3AED;
+  --orange: #D9A840;
   --skin-accent: #e0a838;
-  --panel-bg: rgba(105, 86, 38, 0.82);
-  --panel-bg-deep: rgba(49, 58, 18, 0.72);
-  --card-bg: rgba(38, 35, 18, 0.58);
-  --card-bg-light: rgba(110, 91, 42, 0.52);
+  --panel-bg: #111111;
+  --panel-bg-deep: #0D0D0D;
+  --card-bg: #1A1A1A;
+  --card-bg-light: #242424;
   --text-muted: rgba(var(--fg), 0.62);
   --text-faint: rgba(var(--fg), 0.42);
 }
@@ -50,18 +51,15 @@ button {
 .panel,
 .settings-panel {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  background:
-    linear-gradient(145deg, rgba(147, 120, 55, 0.72), rgba(61, 76, 33, 0.68)),
-    rgba(97, 78, 36, 0.76);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(26px) saturate(1.12);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--panel-bg);
+  box-shadow: none;
 }
 
 .panel {
   width: min(356px, 100vw);
   height: min(600px, 100vh);
-  border-radius: 22px;
+  border-radius: 12px;
   padding: 0 16px 16px;
   overflow: hidden;
 }
@@ -139,10 +137,10 @@ button {
 }
 
 .card {
-  background: linear-gradient(180deg, rgba(44, 38, 16, 0.68), rgba(36, 35, 16, 0.62));
-  border: 1px solid rgba(255, 255, 255, 0.025);
+  background: var(--card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 12px;
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+  box-shadow: none;
 }
 
 .balance-card {
@@ -197,7 +195,7 @@ button {
   font-size: 32px;
   line-height: 1;
   font-weight: 900;
-  color: #6570ff;
+  color: var(--text-strong);
   font-variant-numeric: tabular-nums;
 }
 
@@ -233,8 +231,8 @@ button {
 .mini-card {
   min-height: 56px;
   padding: 9px 12px;
-  border-radius: 10px;
-  background: rgba(122, 101, 50, 0.46);
+  border-radius: 8px;
+  background: var(--card-bg);
   min-width: 0;
   overflow: hidden;
   display: flex;
@@ -267,7 +265,6 @@ button {
   align-items: center;
   gap: 12px;
   padding: 9px 12px;
-  border: 0;
   text-align: left;
   cursor: pointer;
 }
@@ -356,11 +353,11 @@ button {
 }
 
 .flash-fill {
-  background: linear-gradient(90deg, #4690ff, #65d0d1);
+  background: var(--flash);
 }
 
 .pro-fill {
-  background: linear-gradient(90deg, #d93ff2, #7463d7);
+  background: var(--pro);
 }
 
 .usage-price {
@@ -489,7 +486,7 @@ button {
 .settings-panel {
   width: min(420px, 100vw);
   height: min(620px, 100vh);
-  border-radius: 22px;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -592,7 +589,7 @@ button {
   width: 100%;
   height: 30px;
   border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 7px;
+  border-radius: 4px;
   padding: 0 10px;
   background: rgba(24, 23, 19, 0.78);
   color: white;
@@ -604,7 +601,7 @@ button {
 .secondary,
 .back-button {
   border: 0;
-  border-radius: 9px;
+  border-radius: 4px;
   background: rgba(var(--fg), 0.18);
   cursor: pointer;
 }
@@ -651,9 +648,10 @@ button:disabled {
 
 .primary {
   border: 0;
-  border-radius: 7px;
+  border-radius: 4px;
   padding: 6px 11px;
   background: var(--brand);
+  color: var(--brand-fg);
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
@@ -666,7 +664,7 @@ button:disabled {
   align-items: center;
   gap: 5px;
   flex: 0 0 auto;
-  color: #58ee72;
+  color: #6ECF78;
   font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
@@ -747,6 +745,7 @@ button:disabled {
 
 .segmented .selected {
   background: var(--brand);
+  color: var(--brand-fg);
 }
 
 .back-button {
@@ -781,7 +780,7 @@ button:disabled {
   align-items: center;
   gap: 14px;
   padding: 14px 18px;
-  border-radius: 18px;
+  border-radius: 12px;
 }
 
 .detail-hero h1 {
@@ -840,9 +839,9 @@ button:disabled {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-radius: 18px;
+  border-radius: 12px;
   padding: 14px 18px 16px;
-  background: linear-gradient(180deg, rgba(26, 50, 21, 0.58), rgba(34, 41, 17, 0.62));
+  background: var(--card-bg);
 }
 
 .detail-chart-head {
@@ -1096,27 +1095,30 @@ button:disabled {
 [data-theme="light"] {
   --fg: 25, 48, 68;
   --text-strong: rgba(22, 42, 64, 0.92);
-  --brand: #2d6cf6;
-  --brand-light: #4d84ff;
-  --flash: #2d7ff5;
-  --pro: #c02fde;
-  --orange: #ef8400;
+  --brand: #111111;
+  --brand-fg: #FFFFFF;
+  --brand-light: #2d6cf6;
+  --flash: #1F6C9F;
+  --pro: #7C3AED;
+  --orange: #956400;
   --skin-accent: #2d6cf6;
+  --panel-bg: #FFFFFF;
+  --panel-bg-deep: #F7F6F3;
+  --card-bg: #F9F9F8;
+  --card-bg-light: #FFFFFF;
 }
 
 [data-theme="light"] .panel,
 [data-theme="light"] .settings-panel {
-  border-color: rgba(255, 255, 255, 0.55);
-  background:
-    linear-gradient(150deg, rgba(150, 205, 236, 0.85), rgba(172, 224, 206, 0.82)),
-    rgba(216, 233, 239, 0.92);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.6);
+  border-color: rgba(0, 0, 0, 0.06);
+  background: var(--panel-bg);
+  box-shadow: none;
 }
 
 [data-theme="light"] .card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.42));
-  border-color: rgba(255, 255, 255, 0.6);
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.7), 0 2px 8px rgba(40, 80, 120, 0.08);
+  background: var(--card-bg);
+  border-color: #EAEAEA;
+  box-shadow: none;
 }
 
 [data-theme="light"] .header-actions button,
@@ -1129,28 +1131,25 @@ button:disabled {
 }
 
 [data-theme="light"] .status-pill {
-  background: rgba(34, 160, 90, 0.16);
-  color: #15a34a;
+  background: rgba(52, 101, 56, 0.12);
+  color: #346538;
 }
 [data-theme="light"] .status-pill span {
-  background: #15a34a;
+  background: #346538;
 }
 [data-theme="light"] .status-pill.off {
-  background: rgba(224, 108, 52, 0.18);
-  color: #d2691e;
+  background: rgba(149, 100, 0, 0.12);
+  color: #956400;
 }
 [data-theme="light"] .status-pill.off span {
-  background: #d2691e;
+  background: #956400;
 }
 
-[data-theme="light"] .balance-amount {
-  color: #2d6cf6;
-}
 [data-theme="light"] .balance-error {
   color: #dc2626;
 }
 [data-theme="light"] .mini-card {
-  background: rgba(255, 255, 255, 0.52);
+  background: var(--card-bg);
 }
 
 [data-theme="light"] .cache-hit-rate.flash {
@@ -1186,7 +1185,7 @@ button:disabled {
 }
 
 [data-theme="light"] .detail-chart {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.34));
+  background: var(--card-bg);
 }
 
 [data-theme="light"] .bar-tooltip {
@@ -1212,7 +1211,7 @@ button:disabled {
   color: #1a2a40;
 }
 [data-theme="light"] .configured {
-  color: #16a34a;
+  color: #346538;
 }
 [data-theme="light"] .toggle-row i {
   background: rgba(40, 70, 100, 0.22);
@@ -1223,10 +1222,6 @@ button:disabled {
 [data-theme="light"] .segmented button {
   color: #1a2a40;
 }
-[data-theme="light"] .segmented .selected {
-  color: #fff;
-}
-
 /* 皮肤选择按钮与弹窗 */
 .skin-menu-wrap {
   position: relative;
