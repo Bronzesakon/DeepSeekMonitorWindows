@@ -79,6 +79,10 @@ const fmtTokensShort = (n: number) => {
   return String(Math.round(n));
 };
 const fmtMoney = (n: number) => "¥" + n.toFixed(2);
+const fmtCacheRate = (hit: number, miss: number): string => {
+  const total = hit + miss;
+  return total > 0 ? (hit / total * 100).toFixed(2) + "%" : "—";
+};
 const mmdd = (date: string) => {
   const parts = date.split("-");
   return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : date;
@@ -563,6 +567,10 @@ function UsageChart({
                     <span className="bar-tooltip-row">
                       <i className="dot response" />输出
                       <strong>{fmtInt(point.response)} tokens</strong>
+                    </span>
+                    <span className="bar-tooltip-rate">
+                      缓存命中率
+                      <strong>{fmtCacheRate(point.hit, point.miss)}</strong>
                     </span>
                   </div>
                 )}
@@ -1108,6 +1116,10 @@ function ModelDetailPanel({
                       <span className="bar-tooltip-row">
                         <i className="dot response" />输出
                         <strong>{fmtInt(point.response)} tokens</strong>
+                      </span>
+                      <span className="bar-tooltip-rate">
+                        缓存命中率
+                        <strong>{fmtCacheRate(point.hit, point.miss)}</strong>
                       </span>
                     </div>
                   )}

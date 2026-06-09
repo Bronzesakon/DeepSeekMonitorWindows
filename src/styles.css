@@ -979,6 +979,23 @@ button:disabled {
   color: rgba(var(--fg), 0.92);
 }
 
+.bar-tooltip-row strong {
+  float: none;
+  margin-left: auto;
+  align-self: center;
+}
+
+.bar-tooltip-rate {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0 0;
+  margin-top: 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(var(--fg), 0.56);
+}
+
 .bar-tooltip-sub {
   padding-left: 12px;
   color: rgba(var(--fg), 0.64);
@@ -1193,6 +1210,9 @@ button:disabled {
   border-color: rgba(40, 70, 100, 0.14);
 }
 [data-theme="light"] .bar-tooltip-total {
+  border-top-color: rgba(40, 70, 100, 0.14);
+}
+[data-theme="light"] .bar-tooltip-rate {
   border-top-color: rgba(40, 70, 100, 0.14);
 }
 [data-theme="light"] .bar-tooltip-head {
