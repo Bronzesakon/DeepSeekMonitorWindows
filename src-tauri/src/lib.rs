@@ -156,8 +156,8 @@ pub fn run() {
     }
 
     fn show_main_window(window: &WebviewWindow) {
-        let _ = position_near_tray(window);
         let _ = window.show();
+        let _ = position_near_tray(window);
         let _ = window.set_focus();
     }
 
@@ -973,12 +973,7 @@ pub fn run() {
                     {
                         let app = tray.app_handle();
                         if let Some(window) = app.get_webview_window("main") {
-                            let is_visible = window.is_visible().unwrap_or(false);
-                            if is_visible {
-                                let _ = window.hide();
-                            } else {
-                                show_main_window(&window);
-                            }
+                            show_main_window(&window);
                         }
                     }
                 });
