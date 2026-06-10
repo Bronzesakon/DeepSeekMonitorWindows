@@ -9,17 +9,19 @@ pub fn run() {
         process::Command,
         sync::{
             atomic::{AtomicBool, Ordering},
-            Arc,
+            Arc, Mutex,
         },
         thread,
         time::Duration,
     };
     use tauri::{
         menu::{Menu, MenuItem},
-        tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+        tray::{MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent},
         webview::PageLoadEvent,
         Emitter, Manager, PhysicalPosition, Position, WebviewWindow,
     };
+
+    struct TrayState(Mutex<TrayIcon>);
 
     #[derive(Debug, Default, Deserialize, Serialize)]
     struct StoredConfig {
@@ -162,6 +164,13 @@ pub fn run() {
     #[tauri::command]
     fn hide_main_window(window: WebviewWindow) -> Result<(), String> {
         window.hide().map_err(|error| error.to_string())
+    }
+
+    #[tauri::command]
+    fn update_tray_tooltip(app: tauri::AppHandle, text: String) -> Result<(), String> {
+        let state = app.state::<TrayState>();
+        let tray = state.0.lock().map_err(|e| e.to_string())?;
+        tray.set_tooltip(Some(&text)).map_err(|e| e.to_string())
     }
 
     #[tauri::command]
@@ -922,7 +931,8 @@ pub fn run() {
             clear_usage_token,
             fetch_usage,
             start_usage_sync,
-            usage_token_captured
+            usage_token_captured,
+            update_tray_tooltip
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -937,7 +947,9 @@ pub fn run() {
             let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let tray_menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
+            let tray_tooltip = format!("DeepSeek Monitor\nv{}", app.package_info().version);
             let mut tray_builder = TrayIconBuilder::new()
+                .tooltip(tray_tooltip)
                 .menu(&tray_menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
@@ -975,7 +987,8 @@ pub fn run() {
                 tray_builder = tray_builder.icon(icon.clone());
             }
 
-            tray_builder.build(app)?;
+            let tray = tray_builder.build(app)?;
+            app.manage(TrayState(Mutex::new(tray)));
             Ok(())
         })
         .run(tauri::generate_context!())

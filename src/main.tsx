@@ -83,6 +83,30 @@ const fmtCacheRate = (hit: number, miss: number): string => {
   const total = hit + miss;
   return total > 0 ? (hit / total * 100).toFixed(2) + "%" : "—";
 };
+const fmtTokenSmart = (n: number): string => {
+  if (n >= 1e9) return (n / 1e6).toFixed(0) + "M";
+  if (n >= 1e8) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + "K";
+  return String(Math.round(n));
+};
+const buildTrayTooltip = (usage: UsageResult | null): string => {
+  if (!usage) return "当日token用量";
+  const today = usage.days.find((d) => d.date === todayStr());
+  const fHit = today?.flashCacheHit ?? 0;
+  const fMiss = today?.flashCacheMiss ?? 0;
+  const fTotal = fHit + fMiss + (today?.flashResponse ?? 0);
+  const fRate = fHit + fMiss > 0 ? ((fHit / (fHit + fMiss)) * 100).toFixed(2) + "%" : "-";
+  const pHit = today?.proCacheHit ?? 0;
+  const pMiss = today?.proCacheMiss ?? 0;
+  const pTotal = pHit + pMiss + (today?.proResponse ?? 0);
+  const pRate = pHit + pMiss > 0 ? ((pHit / (pHit + pMiss)) * 100).toFixed(2) + "%" : "-";
+  return [
+    "当日token用量",
+    `Flash：${fmtTokenSmart(fTotal)}    命中率：${fRate}`,
+    `Pro：${fmtTokenSmart(pTotal)}    命中率：${pRate}`,
+  ].join("\n");
+};
 const mmdd = (date: string) => {
   const parts = date.split("-");
   return parts.length === 3 ? `${Number(parts[1])}/${Number(parts[2])}` : date;
@@ -188,6 +212,7 @@ function App() {
         setUsage(data);
         setUsageState("ok");
         setUsageError("");
+        void invoke("update_tray_tooltip", { text: buildTrayTooltip(data) }).catch(() => {});
       })
       .catch((error) => {
         const message = typeof error === "string" ? error : "查询失败";
@@ -646,7 +671,7 @@ function SettingsPanel({
   const [usageStatus, setUsageStatus] = React.useState("");
   const [usageSyncing, setUsageSyncing] = React.useState(false);
   const [showManualPaste, setShowManualPaste] = React.useState(false);
-  const [appVersion, setAppVersion] = React.useState("1.1.0");
+  const [appVersion, setAppVersion] = React.useState("1.1.2");
   const configPath = config?.configPath ?? "%APPDATA%\\DeepSeekMonitorWindows\\config.json";
 
   React.useEffect(() => {
@@ -667,7 +692,7 @@ function SettingsPanel({
   React.useEffect(() => {
     void getVersion()
       .then(setAppVersion)
-      .catch(() => setAppVersion("1.1.0"));
+      .catch(() => setAppVersion("1.1.2"));
   }, []);
 
   const refreshUsageAfterToken = React.useCallback(
