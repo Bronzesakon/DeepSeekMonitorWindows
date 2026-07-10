@@ -3,8 +3,15 @@
   "identifier": "default",
   "description": "permissions for the main window only",
   "windows": [
-    "main"
+    "main",
+    "login-sync"
   ],
+  "remote": {
+    "urls": [
+      "https://platform.deepseek.com",
+      "https://platform.deepseek.com/*"
+    ]
+  },
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
@@ -13,6 +20,10 @@
     "core:window:allow-close",
     "core:window:allow-set-focus",
     "core:event:allow-emit",
-    "core:event:allow-listen"
+    "core:event:allow-listen",
+    "core:webview:allow-internal-toggle-devtools",
+    "updater:default",
+    "process:default",
+    "dialog:default"
   ]
 }

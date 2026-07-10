@@ -1261,3 +1261,87 @@ button:disabled {
   color: var(--skin-accent);
   box-shadow: inset 0 0 0 1px rgba(var(--fg), 0.12);
 }
+
+/* ─── MiMo / Provider Toggle ─────────────────────────────── */
+.provider-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(var(--fg), 0.18);
+  background: rgba(var(--fg), 0.06);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.provider-toggle:hover {
+  background: rgba(var(--fg), 0.12);
+  color: var(--text-strong);
+}
+.provider-arrow {
+  font-size: 13px;
+}
+.provider-mimo {
+  color: var(--mimo);
+}
+
+/* ─── Settings Provider Title ────────────────────────────── */
+.settings-provider-title {
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+/* ─── MiMo Color Variable ────────────────────────────────── */
+:root {
+  --mimo: #ff9c2b;
+}
+[data-theme="light"] {
+  --mimo: #e07800;
+}
+
+/* ─── System Theme (follow OS) ───────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  [data-theme="system"] {
+    --fg: 246, 239, 222;
+    --text-strong: rgba(255, 255, 255, 0.92);
+    --brand: #FFFFFF;
+    --brand-fg: #111111;
+    --brand-light: #6B9FFF;
+    --flash: #1F6C9F;
+    --pro: #7C3AED;
+    --orange: #D9A840;
+    --skin-accent: #e0a838;
+    --panel-bg: #111111;
+    --panel-bg-deep: #0D0D0D;
+    --card-bg: #1A1A1A;
+    --card-bg-light: #242424;
+    --text-muted: rgba(246, 239, 222, 0.62);
+    --text-faint: rgba(246, 239, 222, 0.42);
+    --mimo: #ff9c2b;
+  }
+}
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    --fg: 25, 48, 68;
+    --text-strong: rgba(22, 42, 64, 0.92);
+    --brand: #111111;
+    --brand-fg: #FFFFFF;
+    --brand-light: #2d6cf6;
+    --flash: #1F6C9F;
+    --pro: #7C3AED;
+    --orange: #956400;
+    --skin-accent: #2d6cf6;
+    --panel-bg: #FFFFFF;
+    --panel-bg-deep: #F7F6F3;
+    --card-bg: #F9F9F8;
+    --card-bg-light: #FFFFFF;
+    --text-muted: rgba(25, 48, 68, 0.62);
+    --text-faint: rgba(25, 48, 68, 0.42);
+    --mimo: #e07800;
+  }
+}
