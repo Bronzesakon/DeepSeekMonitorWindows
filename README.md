@@ -95,7 +95,7 @@ Tauri 打包目标当前配置为 NSIS 安装包，产物位于 `src-tauri/targe
 %APPDATA%\DeepSeekMonitorWindows\config.json
 ```
 
-其中包含 API Key 和用量 Token。**请不要提交该文件，也不要把截图、日志或配置文件中的密钥内容公开。**
+其中包含 API Key 和用量 Token，凭据已通过 Windows DPAPI 加密存储，不在文件中明文保留。**请不要提交该文件，也不要把截图、日志或配置文件中的密钥内容公开。**
 
 WebView2 登录缓存通常位于：
 
@@ -113,10 +113,12 @@ DeepSeekMonitorWindows/
 │   ├── main.tsx                 # 主界面、设置页、详情页和 Tauri 调用
 │   └── styles.css               # Windows 桌面 UI 样式
 ├── src-tauri/                   # Tauri + Rust 后端
-│   ├── src/lib.rs               # API 调用、配置存储、托盘、网页登录同步
-│   ├── tauri.conf.json          # Tauri 窗口、打包和安全配置
+│   ├── src/lib.rs               # API 调用、配置存储、凭据加密、托盘、网页登录同步
+│   ├── tauri.conf.json          # Tauri 窗口、打包和安全配置（CSP 已启用）
 │   ├── Cargo.toml               # Rust 依赖与包信息
 │   └── capabilities/            # Tauri 权限配置
+│       ├── default.json         # 主窗口权限
+│       └── login-sync.json      # 登录窗口最小权限
 ├── public/assets/               # DeepSeek 图标与静态资源
 ├── scripts/                     # Windows 开发脚本
 ├── package.json                 # 前端依赖与脚本
@@ -193,4 +195,4 @@ Rust 后端依赖：
 
 本项目仅用于学习和研究目的。请遵守 DeepSeek 的使用条款，合理使用相关接口，避免频繁请求。
 
-DeepSeek 平台页面结构、登录状态、WebView2 缓存和内部用量接口都可能变化，本项目不保证长期可用。**API Key 和用量 Token 属于敏感凭据，使用者需自行承担本机存储、账号安全、网络请求和数据展示带来的风险。**
+DeepSeek 平台页面结构、登录状态、WebView2 缓存和内部用量接口都可能变化，本项目不保证长期可用。**API Key 和用量 Token 已通过 Windows DPAPI 加密存储在本机，但使用者仍需自行承担账号安全、网络请求和数据展示带来的风险。**
