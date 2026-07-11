@@ -22,14 +22,6 @@ pub struct StoredConfig {
     pub auto_refresh_enabled: bool,
     pub autostart: bool,
     #[serde(default)]
-    pub window_width: Option<f64>,
-    #[serde(default)]
-    pub window_height: Option<f64>,
-    #[serde(default)]
-    pub window_x: Option<i32>,
-    #[serde(default)]
-    pub window_y: Option<i32>,
-    #[serde(default)]
     pub low_balance_notify: bool,
     #[serde(default)]
     pub low_balance_threshold: f64,

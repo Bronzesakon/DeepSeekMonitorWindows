@@ -1,6 +1,6 @@
 import React from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { BarChart3, Brain, CalendarDays, CreditCard, Settings, Shirt, SunMedium, X, Zap, RefreshCw } from "lucide-react";
+import { BarChart3, Brain, CalendarDays, CreditCard, Settings, Shirt, SunMedium, X, Zap, RefreshCw, Eye } from "lucide-react";
 import type { Provider, BalanceData, MimoBalanceData, BalanceState, UsageResult, MimoUsageResult, MimoUsageModel, UsageModel, AppConfig } from "../types";
 import { fmtInt, fmtTokensShort, fmtMoney, mmdd, todayStr, dateKey, addDays, modelDisplayName, modelIcon } from "../utils";
 
@@ -38,7 +38,9 @@ export function BalanceCard({ balance, state, error, todayCost, monthCost, provi
         <div className={`status-pill ${statusOff ? "off" : ""}`}><span />{statusText}</div>
       </div>
       <div className={`balance-amount ${state !== "ok" ? "balance-dim" : ""}`}>{amount}</div>
-      {state === "error" && <div className="balance-error">{error}</div>}
+      <div className="balance-error-wrap">
+        {state === "error" && <div className="balance-error">{error}</div>}
+      </div>
       <div className="metric-grid">
         <div className="mini-card">
           <div className="caption-with-icon orange"><SunMedium size={15} /><span>当日消耗</span></div>
@@ -66,6 +68,7 @@ export function UsageRow({ modelKey, data, maxTokens, state, onClick, modelDispl
   efficiencyUnit?: "token_per_currency" | "currency_per_token";
 }) {
   const isFlash = modelKey === "flash";
+  const isMiMo = modelKey === "mimo";
   const name = modelDisplay ?? (isFlash ? "V4 Flash" : "V4 Pro");
   const tokensText = data ? `${fmtInt(data.totalTokens)} Tokens`
     : state === "loading" ? "查询中…"
@@ -83,24 +86,28 @@ export function UsageRow({ modelKey, data, maxTokens, state, onClick, modelDispl
 
   return (
     <button className="card usage-row" onClick={onClick}>
-      <div className={`model-badge ${isFlash ? "flash" : "pro"}`}>
-        {isFlash ? <Zap size={27} fill="currentColor" /> : <Brain size={25} />}
+      <div className={`model-icon ${isFlash ? "flash" : isMiMo ? "mimo" : "pro"}`}>
+        {isFlash ? <Zap size={27} fill="currentColor" /> : isMiMo ? <Eye size={25} /> : <Brain size={25} />}
       </div>
       <div className="usage-main">
-        <h2>{name}</h2>
-        <div className="token-line">
-          <span>{tokensText}</span>
-          <div className="progress-track"><i className={isFlash ? "flash-fill" : "pro-fill"} style={{ width }} /></div>
+        <div className="usage-row-top">
+          <h2 className={`model-badge ${isFlash ? "flash" : isMiMo ? "mimo" : "pro"}`}>{name}</h2>
+          <div className="usage-price">{cost}</div>
         </div>
-        {data && data.cacheHitTokens + data.cacheMissTokens > 0 && (
-          <span className={`cache-hit-rate ${isFlash ? "flash" : "pro"}`}>
-            缓存命中 {((data.cacheHitTokens / (data.cacheHitTokens + data.cacheMissTokens)) * 100).toFixed(3)}%
-          </span>
-        )}
-      </div>
-      <div className="usage-price">
-        <strong>{cost}</strong>
-        <span>{ratio}</span>
+        <div className="usage-row-middle">
+          <span className="token-count">{tokensText}</span>
+          <span className="usage-rate">{ratio}</span>
+        </div>
+        <div className="usage-row-bottom">
+          {data && data.cacheHitTokens + data.cacheMissTokens > 0 ? (
+            <span className={`cache-hit-rate ${isFlash ? "flash" : isMiMo ? "mimo" : "pro"}`}>
+              缓存命中 {((data.cacheHitTokens / (data.cacheHitTokens + data.cacheMissTokens)) * 100).toFixed(3)}%
+            </span>
+          ) : (
+            <span className="cache-hit-rate-placeholder">—</span>
+          )}
+          <div className="progress-track"><i className={isFlash ? "flash-fill" : isMiMo ? "mimo-fill" : "pro-fill"} style={{ width }} /></div>
+        </div>
       </div>
     </button>
   );
@@ -168,14 +175,21 @@ export function UsageChart({ usage, state, error, provider, currency, exchangeRa
 
   return (
     <article className="card chart-card">
-      <div className="card-title-row">
+      <div className="chart-header">
         <div className="caption-with-icon"><BarChart3 size={16} className="brand-blue" /><span>缓存命中明细</span></div>
+        <span className="chart-total">{state === "ok" ? `${hitRate}% · ${fmtTokensShort(sumTotal)} · ${ratio}` : "—"}</span>
+      </div>
+      <div className="chart-subheader">
         <div className="chart-nav">
           <button className="chart-nav-btn" onClick={() => setWeekOffset((o) => o - 1)} title="上一周">‹</button>
           <span className="chart-nav-label">{weekLabel}</span>
           <button className="chart-nav-btn" onClick={() => setWeekOffset((o) => o + 1)} disabled={!canGoForward} title="下一周">›</button>
         </div>
-        <span className="chart-total">{state === "ok" ? `${hitRate}% · ${fmtTokensShort(sumTotal)} · ${ratio}` : "—"}</span>
+        <div className="chart-legend-bottom">
+          <span className="chart-legend-item"><i className="dot hit" />命中</span>
+          <span className="chart-legend-item"><i className="dot miss" />未命中</span>
+          <span className="chart-legend-item"><i className="dot response" />输出</span>
+        </div>
       </div>
       {state === "ok" && points.length > 0 ? (
         <>
@@ -214,11 +228,6 @@ export function UsageChart({ usage, state, error, provider, currency, exchangeRa
               </div>
             ))}
           </div>
-          <div className="chart-legend-bottom">
-            <span className="chart-legend-item"><i className="dot hit" />命中</span>
-            <span className="chart-legend-item"><i className="dot miss" />未命中</span>
-            <span className="chart-legend-item"><i className="dot response" />输出</span>
-          </div>
         </>
       ) : <div className="chart-placeholder">{placeholder}</div>}
     </article>
@@ -246,9 +255,9 @@ export function DashboardPanel({ provider, onProviderChange, balance, balanceSta
   onClose: () => void;
   onSettings: () => void;
   onDetail: (model: string) => void;
-  currency: "cny" | "usd";
-  exchangeRate: number;
-  efficiencyUnit: "token_per_currency" | "currency_per_token";
+  currency?: "cny" | "usd";
+  exchangeRate?: number;
+  efficiencyUnit?: "token_per_currency" | "currency_per_token";
 }) {
   // Theme is managed by SettingsPanel via config; just ensure data-theme is set on mount
   React.useEffect(() => {

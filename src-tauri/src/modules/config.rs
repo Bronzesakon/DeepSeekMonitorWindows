@@ -5,7 +5,7 @@
 use std::{fs, path::PathBuf};
 
 use crate::modules::types::AppConfig;
-pub use crate::modules::types::StoredConfig;
+use crate::modules::types::StoredConfig;
 
 // ─── DPAPI 加密 ──────────────────────────────────────────
 
@@ -164,11 +164,7 @@ pub fn config_path() -> Result<PathBuf, String> {
 // ─── 配置读写 ────────────────────────────────────────────
 
 fn normalize_refresh_interval_seconds(value: u64) -> u64 {
-    match value {
-        0 => 60,
-        v if v < 60 => 60,
-        _ => value,
-    }
+    if value < 60 { 60 } else { value }
 }
 
 #[cfg(test)]

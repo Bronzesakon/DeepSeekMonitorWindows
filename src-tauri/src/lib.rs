@@ -29,16 +29,19 @@ struct CallbackServer {
 impl CallbackServer {
     fn start(shared_map: Arc<Mutex<HashMap<String, oneshot::Sender<String>>>>) -> std::io::Result<Self> {
         use tiny_http::{Header, Method, Response, Server};
+        log::info!("[CallbackServer] Starting on 127.0.0.1:0");
         let server = Server::http("127.0.0.1:0").map_err(|e| std::io::Error::new(std::io::ErrorKind::AddrNotAvailable, format!("无法启动回调服务器：{e}")))?;
         let port = server.server_addr().to_ip().ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidData, "回调服务器地址无效"))?.port();
+        log::info!("[CallbackServer] Started on port {}", port);
         std::thread::spawn(move || {
             while let Ok(Some(mut request)) =
                 server.recv_timeout(std::time::Duration::from_secs(3600))
             {
                 if *request.method() == Method::Options {
+                    log::debug!("[CallbackServer] OPTIONS request received");
                     let response = Response::from_string(String::new())
                         .with_header(
-                            Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"null"[..])
+                            Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..])
                                 .unwrap(),
                         )
                         .with_header(
@@ -59,19 +62,24 @@ impl CallbackServer {
                 } else {
                     let mut body = String::new();
                     let _ = request.as_reader().read_to_string(&mut body);
+                    log::debug!("[CallbackServer] POST request body length: {}", body.len());
                     if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&body) {
                         if let (Some(rid), Some(data)) = (
                             parsed.get("reqId").and_then(|v| v.as_str()),
                             parsed.get("data").and_then(|v| v.as_str()),
                         ) {
+                            log::debug!("[CallbackServer] Received response for reqId: {}", rid);
                             let mut map = shared_map.lock().unwrap();
                             if let Some(tx) = map.remove(rid) {
                                 let _ = tx.send(data.to_string());
+                                log::debug!("[CallbackServer] Response sent for reqId: {}", rid);
+                            } else {
+                                log::warn!("[CallbackServer] No sender found for reqId: {}", rid);
                             }
                         }
                     }
                     let response = Response::from_string("OK").with_header(
-                        Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"null"[..]).unwrap(),
+                        Header::from_bytes(&b"Access-Control-Allow-Origin"[..], &b"*"[..]).unwrap(),
                     );
                     let _ = request.respond(response);
                 }
@@ -241,6 +249,10 @@ fn set_provider(provider: String) -> Result<AppConfig, String> {
         return Err("无效的 provider，仅支持 deepseek 或 mimo".to_string());
     }
     let mut config = config::read_stored_config()?;
+    // 切换到 MiMo 时清除缓存的 ph，避免 fast-path 失败
+    if provider == "mimo" {
+        config.mimo_ph = None;
+    }
     config.provider = provider;
     config::write_stored_config(&config)?;
     config::to_app_config(config)
@@ -338,75 +350,6 @@ fn mimo_api_response(
     mimo::do_mimo_api_response(&app, req_id, json)
 }
 
-// ─── 自动更新 ──────────────────────────────────────────────
-
-struct PendingUpdate(std::sync::Mutex<Option<tauri_plugin_updater::Update>>);
-
-#[derive(serde::Serialize)]
-struct UpdateInfo {
-    version: String,
-    date: String,
-    body: String,
-}
-
-#[derive(Clone, serde::Serialize)]
-#[serde(tag = "event", content = "data")]
-enum DownloadEvent {
-    #[serde(rename_all = "camelCase")]
-    Started { content_length: Option<u64> },
-    #[serde(rename_all = "camelCase")]
-    Progress { chunk_length: usize, downloaded: u64 },
-    Finished,
-}
-
-#[tauri::command]
-async fn check_update(app: tauri::AppHandle, pending: tauri::State<'_, PendingUpdate>) -> Result<Option<UpdateInfo>, String> {
-    use tauri_plugin_updater::UpdaterExt;
-    let updater = app.updater().map_err(|e| format!("获取更新器失败：{e}"))?;
-    match updater.check().await {
-        Ok(Some(update)) => {
-            let info = UpdateInfo {
-                version: update.version.clone(),
-                date: update.date.map(|d| {
-                    let y = d.year();
-                    let m = d.month() as u8;
-                    let day = d.day();
-                    format!("{y}-{m:02}-{day:02}")
-                }).unwrap_or_default(),
-                body: update.body.clone().unwrap_or_default(),
-            };
-            *pending.0.lock().unwrap() = Some(update);
-            Ok(Some(info))
-        }
-        Ok(None) => Ok(None),
-        Err(e) => Err(format!("检查更新失败：{e}")),
-    }
-}
-
-#[tauri::command]
-async fn install_update(pending: tauri::State<'_, PendingUpdate>, on_event: tauri::ipc::Channel<DownloadEvent>) -> Result<(), String> {
-    let update = pending.0.lock().unwrap().take().ok_or("没有待安装的更新")?;
-    let mut downloaded: u64 = 0;
-    let mut started = false;
-    update
-        .download_and_install(
-            |chunk_len, content_len| {
-                if !started {
-                    let _ = on_event.send(DownloadEvent::Started { content_length: content_len });
-                    started = true;
-                }
-                downloaded += chunk_len as u64;
-                let _ = on_event.send(DownloadEvent::Progress { chunk_length: chunk_len, downloaded });
-            },
-            || {
-                let _ = on_event.send(DownloadEvent::Finished);
-            },
-        )
-        .await
-        .map_err(|e| format!("下载安装失败：{e}"))?;
-    Ok(())
-}
-
 // ─── 主入口 ──────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -422,7 +365,6 @@ pub fn run() {
         .manage(Arc::new(tokio::sync::Mutex::new(())))
         .manage(Mutex::new(MimoDetailCache::new()))
         .manage(Mutex::new(CallbackServerPort(0)))
-        .manage(PendingUpdate(std::sync::Mutex::new(None)))
         .invoke_handler(tauri::generate_handler![
             hide_main_window,
             update_tray_tooltip,
@@ -449,18 +391,13 @@ pub fn run() {
             fetch_mimo_usage,
             start_mimo_sync,
             ensure_mimo_webview,
-            mimo_api_response,
-            check_update,
-            install_update
+            mimo_api_response
         ])
-        .plugin(tauri_plugin_updater::Builder::new().build())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
                     tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
+                        .level(log::LevelFilter::Debug)
                         .build(),
                 )?;
             }
@@ -470,10 +407,17 @@ pub fn run() {
                 .state::<Arc<Mutex<HashMap<String, oneshot::Sender<String>>>>>()
                 .inner()
                 .clone();
-            let cb_server = CallbackServer::start(shared_map)?;
-            *app.state::<Mutex<CallbackServerPort>>().lock().unwrap() =
-                CallbackServerPort(cb_server.port);
-            app.manage(Mutex::new(cb_server));
+            match CallbackServer::start(shared_map) {
+                Ok(cb_server) => {
+                    log::info!("[Setup] CallbackServer port: {}", cb_server.port);
+                    *app.state::<Mutex<CallbackServerPort>>().lock().unwrap() =
+                        CallbackServerPort(cb_server.port);
+                    app.manage(Mutex::new(cb_server));
+                }
+                Err(e) => {
+                    log::error!("[Setup] CallbackServer failed: {}", e);
+                }
+            }
 
             // 初始化托盘
             tray::setup_tray(app)?;

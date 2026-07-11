@@ -93,7 +93,7 @@ pub fn ensure_mimo_webview_sync(app: &tauri::AppHandle) -> Result<tauri::Webview
             .parse()
             .map_err(|_| "无效 URL".to_string())?,
     );
-    tauri::WebviewWindowBuilder::new(app, "mimo-sync", url)
+    let window = tauri::WebviewWindowBuilder::new(app, "mimo-sync", url)
         .title("小米 MiMo 控制台")
         .inner_size(480.0, 720.0)
         .min_inner_size(360.0, 480.0)
@@ -109,7 +109,17 @@ pub fn ensure_mimo_webview_sync(app: &tauri::AppHandle) -> Result<tauri::Webview
         })
         .initialization_script(MIMO_INTERCEPT_JS)
         .build()
-        .map_err(|error| format!("打开 MiMo 页面失败：{error}"))
+        .map_err(|error| format!("打开 MiMo 页面失败：{error}"))?;
+
+    // 监听窗口关闭事件
+    let app_clone = app.clone();
+    window.on_window_event(move |event| {
+        if let tauri::WindowEvent::CloseRequested { .. } = event {
+            let _ = app_clone.emit("mimo-sync-closed", ());
+        }
+    });
+
+    Ok(window)
 }
 
 // ─── 通用 API 调用 ──────────────────────────────────────

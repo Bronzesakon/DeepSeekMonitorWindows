@@ -343,10 +343,8 @@ pub fn start_usage_sync(app: &tauri::AppHandle) -> Result<bool, String> {
         return Ok(true);
     }
 
-    if app.get_webview_window("login-sync").is_some() {
-        if let Some(window) = app.get_webview_window("login-sync") {
-            let _ = window.eval("location.reload();");
-        }
+    if let Some(window) = app.get_webview_window("login-sync") {
+        let _ = window.eval("location.reload();");
         return Ok(false);
     }
 

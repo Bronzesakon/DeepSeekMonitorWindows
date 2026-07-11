@@ -1,11 +1,10 @@
 import React from "react";
-import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getVersion } from "@tauri-apps/api/app";
 import {
   BarChart3, CheckCircle2, Info, KeyRound, Power, Settings, X,
-  User, Monitor, Bell, Palette, ChevronRight, ChevronLeft,
+  User, Monitor, Bell, Palette, ChevronDown,
 } from "lucide-react";
 import type { Provider, AppConfig, BalanceData, MimoBalanceData, BalanceState, UsageResult, MimoUsageResult } from "../types";
 import { fmtMoney, addDays, previousMonth } from "../utils";
@@ -32,12 +31,6 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
   const [appVersion, setAppVersion] = React.useState("1.1.0");
   const [mimoStatus, setMimoStatus] = React.useState("");
   const [mimoSyncing, setMimoSyncing] = React.useState(false);
-  const [checkingUpdate, setCheckingUpdate] = React.useState(false);
-  const [updateInfo, setUpdateInfo] = React.useState<{ version: string; date: string; body: string } | null>(null);
-  const [updateError, setUpdateError] = React.useState("");
-  const [downloading, setDownloading] = React.useState(false);
-  const [downloadProgress, setDownloadProgress] = React.useState<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
-  const [downloadDone, setDownloadDone] = React.useState(false);
   const [activeCategory, setActiveCategory] = React.useState<string | null>(null);
   const [customDsRefresh, setCustomDsRefresh] = React.useState(false);
   const [customMimoRefresh, setCustomMimoRefresh] = React.useState(false);
@@ -73,6 +66,7 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
   React.useEffect(() => { const p = listen<AppConfig>("usage-token-captured", (e) => { setConfig(e.payload); setUsageSyncing(false); void refreshUsageAfterToken("已通过网页登录自动同步用量 Token"); }); return () => { void p.then((u) => u()); }; }, [refreshUsageAfterToken]);
   React.useEffect(() => { const p = listen("usage-sync-ended", () => { setUsageSyncing(false); setUsageStatus("登录窗口已关闭，Token 未获取到。可重新点击同步或使用方式二手动粘贴。"); }); return () => { void p.then((u) => u()); }; }, []);
   React.useEffect(() => { const p = listen("mimo-sync-started", () => { setMimoStatus("请在打开的窗口中登录小米账号，登录后保持窗口打开"); }); return () => { void p.then((u) => u()); }; }, []);
+  React.useEffect(() => { const p = listen("mimo-sync-closed", () => { setMimoStatus("登录窗口已关闭"); setMimoSyncing(false); }); return () => { void p.then((u) => u()); }; }, []);
 
   const pasteApiKey = React.useCallback(async () => { try { setApiKey((await navigator.clipboard.readText()).trim()); setStatus("已从剪贴板读取"); } catch { setStatus("剪贴板读取失败"); } }, []);
   const saveApiKey = React.useCallback(() => { setBusy(true); void invoke<AppConfig>("save_api_key", { apiKey }).then((c) => { setConfig(c); setApiKey(""); setStatus("已保存，正在验证 Key…"); return invoke<BalanceData>("fetch_balance"); }).then((b) => { setStatus(`验证通过，当前余额 ${b.currency === "USD" ? "$" : "¥"}${b.totalBalance}${b.isAvailable ? "" : "（余额不足）"}`); }).catch((e) => { setStatus(typeof e === "string" ? e : "保存或验证失败"); }).finally(() => setBusy(false)); }, [apiKey]);
@@ -122,55 +116,6 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
     }
   }, [theme]);
 
-  const handleCheckUpdate = React.useCallback(() => {
-    setCheckingUpdate(true);
-    setUpdateError("");
-    setUpdateInfo(null);
-    setDownloadDone(false);
-    setDownloadProgress({ downloaded: 0, total: null });
-    void invoke<{ version: string; date: string; body: string } | null>("check_update")
-      .then((info) => {
-        setUpdateInfo(info);
-        if (!info) setUpdateError("");
-      })
-      .catch((err) => {
-        setUpdateInfo(null);
-        const msg = typeof err === "string" ? err : String(err);
-        setUpdateError(msg);
-        console.warn("检查更新失败:", err);
-      })
-      .finally(() => setCheckingUpdate(false));
-  }, []);
-
-  const handleInstallUpdate = React.useCallback(async () => {
-    setDownloading(true);
-    setDownloadProgress({ downloaded: 0, total: null });
-    setDownloadDone(false);
-    try {
-      const { Channel } = await import("@tauri-apps/api/core");
-      const onEvent = new Channel<{ event: string; data?: { contentLength?: number; chunkLength?: number; downloaded?: number } }>();
-      onEvent.onmessage = (msg) => {
-        if (msg.event === "Started") {
-          setDownloadProgress({ downloaded: 0, total: msg.data?.contentLength ?? null });
-        } else if (msg.event === "Progress") {
-          // Use server-side cumulative downloaded value directly
-          setDownloadProgress((prev) => ({ downloaded: msg.data?.downloaded ?? prev?.downloaded ?? 0, total: prev?.total ?? null }));
-        } else if (msg.event === "Finished") {
-          setDownloadDone(true);
-          setDownloading(false);
-        }
-      };
-      await invoke("install_update", { onEvent });
-      // On Windows/NSIS, the process exits during install — this line is unreachable.
-      // The NSIS installer handles restart via its /UPDATE flag.
-    } catch (e) {
-      console.warn("下载安装失败:", e);
-      setDownloading(false);
-      setDownloadDone(false);
-      setDownloadProgress({ downloaded: 0, total: null });
-    }
-  }, []);
-
   // Category list view
   const categories = [
     { key: "account", icon: <User size={15} />, label: '账户' },
@@ -184,8 +129,8 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
   const accountContent = (
     <>
       {/* DeepSeek Account */}
-      <div style={{ marginBottom: 16, borderLeft: '3px solid #4f8cff', paddingLeft: 12 }}>
-        <div style={{ fontSize: '1em', fontWeight: 600, marginBottom: 12, color: '#4f8cff' }}>DeepSeek</div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: '1em', fontWeight: 600, marginBottom: 12, color: 'var(--text-strong)' }}>DeepSeek</div>
         <SettingsSection icon={<KeyRound size={15} />} title="API Key">
           <p>用于调用 DeepSeek API 获取余额和用量数据。</p>
           <p className="muted">API Key 只在当前这台 Windows 电脑本地保留。</p>
@@ -214,8 +159,8 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
       </div>
 
       {/* MiMo Account */}
-      <div style={{ marginBottom: 16, borderLeft: '3px solid #FF6900', paddingLeft: 12 }}>
-        <div style={{ fontSize: '1em', fontWeight: 600, marginBottom: 12, color: '#FF6900' }}>MiMo</div>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: '1em', fontWeight: 600, marginBottom: 12, color: 'var(--text-strong)' }}>MiMo</div>
         <SettingsSection icon={<BarChart3 size={15} />} title="MiMo 登录">
           <p>通过小米账号登录 MiMo 平台，登录成功后即可查看余额和用量数据。</p>
           <div className="settings-actions"><button className="primary" onClick={startMimoSync} disabled={mimoSyncing}>{mimoSyncing ? "正在打开…" : "打开 MiMo 登录"}</button></div>
@@ -234,9 +179,9 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
         {autoRefresh && (
           <div style={{ marginTop: 8 }}>
             <div style={{ marginBottom: 12 }}>
-              <span style={{ fontSize: '0.85em', fontWeight: 500 }}>DeepSeek 刷新间隔</span>
+              <span className="settings-field-label">DeepSeek 刷新间隔</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                <select style={{ fontSize: '0.85em', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(var(--fg), 0.15)', background: 'rgba(var(--fg), 0.03)', color: 'var(--text)' }}
+                <select className="settings-select"
                   value={customDsRefresh ? -1 : refresh}
                   onChange={(e) => {
                     const v = parseInt(e.target.value);
@@ -252,7 +197,7 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
                 </select>
                 {customDsRefresh && (
                   <>
-                    <input type="number" min="1" max="1440" style={{ width: 80, fontSize: '0.85em', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(var(--fg), 0.15)', background: 'rgba(var(--fg), 0.03)', color: 'var(--text)' }}
+                    <input className="settings-inline-input" type="number" min="1" max="1440"
                       placeholder="数值"
                       onKeyDown={(e) => { if (e.key === 'Enter') { const val = parseInt((e.target as HTMLInputElement).value); if (val > 0) saveRefreshInterval(val * 60); } }} />
                     <span style={{ fontSize: '0.8em', opacity: 0.6 }}>分钟</span>
@@ -261,9 +206,9 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
               </div>
             </div>
             <div>
-              <span style={{ fontSize: '0.85em', fontWeight: 500 }}>MiMo 刷新间隔</span>
+              <span className="settings-field-label">MiMo 刷新间隔</span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                <select style={{ fontSize: '0.85em', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(var(--fg), 0.15)', background: 'rgba(var(--fg), 0.03)', color: 'var(--text)' }}
+                <select className="settings-select"
                   value={customMimoRefresh ? -1 : (config?.mimoRefreshIntervalSeconds || 60)}
                   onChange={(e) => {
                     const v = parseInt(e.target.value);
@@ -279,7 +224,7 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
                 </select>
                 {customMimoRefresh && (
                   <>
-                    <input type="number" min="1" max="1440" style={{ width: 80, fontSize: '0.85em', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(var(--fg), 0.15)', background: 'rgba(var(--fg), 0.03)', color: 'var(--text)' }}
+                    <input className="settings-inline-input" type="number" min="1" max="1440"
                       placeholder="数值"
                       onKeyDown={(e) => { if (e.key === 'Enter') { const val = parseInt((e.target as HTMLInputElement).value); if (val > 0) void invoke<AppConfig>("save_mimo_refresh_interval", { seconds: val * 60 }).then(setConfig).catch(() => {}); } }} />
                     <span style={{ fontSize: '0.8em', opacity: 0.6 }}>分钟</span>
@@ -289,8 +234,8 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
             </div>
           </div>
         )}
-        <p style={{ marginTop: 12 }}>默认平台</p>
-        <select style={{ fontSize: '0.85em', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(var(--fg), 0.15)', background: 'rgba(var(--fg), 0.03)', color: 'var(--text-strong)' }}
+        <p className="settings-field-label" style={{ marginTop: 12 }}>默认平台</p>
+        <select className="settings-select"
           value={config?.defaultProvider || "deepseek"}
           onChange={(e) => { void invoke<AppConfig>("save_default_provider", { provider: e.target.value }).then(setConfig).catch(() => {}); }}>
           <option value="deepseek">DeepSeek</option>
@@ -307,7 +252,7 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
         <p>选择应用的外观主题。</p>
         <div style={{ display: 'inline-flex', gap: 6, marginTop: 6 }}>
           {(["light", "dark", "system"] as const).map((opt) => (
-            <button key={opt} style={{ border: 0, borderRadius: 8, padding: '8px 14px', background: theme === opt ? 'var(--brand)' : 'rgba(var(--fg), 0.12)', color: theme === opt ? '#fff' : 'var(--text-strong)', fontSize: '0.85em', fontWeight: 600, cursor: 'pointer' }} onClick={() => saveTheme(opt)}>
+            <button key={opt} className={`theme-btn${theme === opt ? ' active' : ''}`} onClick={() => saveTheme(opt)}>
               {opt === "light" ? '浅色' : opt === "dark" ? '深色' : '跟随系统'}
             </button>
           ))}
@@ -324,14 +269,14 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
       {lowBalanceNotify && (
         <>
           <div className="key-row" style={{ marginTop: 8 }}>
-            <span style={{ fontSize: '0.8em', color: 'var(--text-faint)', marginRight: 8 }}>阈值：</span>
-            <input type="number" min="0" step="0.01" value={lowBalanceThreshold} onChange={(e) => saveLowBalanceThreshold(e.target.value)} style={{ width: 100 }} />
-            <span style={{ fontSize: '0.8em', color: 'var(--text-faint)', marginLeft: 4 }}>¥</span>
+            <span className="settings-field-label" style={{ marginRight: 8 }}>阈值：</span>
+            <input className="settings-inline-input" type="number" min="0" step="0.01" value={lowBalanceThreshold} onChange={(e) => saveLowBalanceThreshold(e.target.value)} style={{ width: 100 }} />
+            <span className="settings-field-label" style={{ marginLeft: 4 }}>¥</span>
           </div>
-          <p style={{ marginTop: 12 }}>通知冷却时间</p>
+          <p className="settings-field-label" style={{ marginTop: 12 }}>通知冷却时间</p>
           <p className="muted">两次余额不足通知之间的最小间隔。</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <select style={{ fontSize: '0.85em', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(var(--fg), 0.15)', background: 'rgba(var(--fg), 0.03)', color: 'var(--text)' }}
+            <select className="settings-select"
               value={customCooldown ? -1 : (config?.notifyCooldownMinutes || 30)}
               onChange={(e) => {
                 const v = parseInt(e.target.value);
@@ -348,7 +293,7 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
             </select>
             {customCooldown && (
               <>
-                <input type="number" min="1" style={{ width: 80, fontSize: '0.85em', padding: '6px 10px', borderRadius: 6, border: '1px solid rgba(var(--fg), 0.15)', background: 'rgba(var(--fg), 0.03)', color: 'var(--text)' }}
+                <input className="settings-inline-input" type="number" min="1"
                   placeholder="数值"
                   onKeyDown={(e) => { if (e.key === 'Enter') { const val = parseInt((e.target as HTMLInputElement).value); if (val > 0) void invoke<AppConfig>("save_notify_cooldown", { minutes: val }).then(setConfig).catch(() => {}); } }} />
                 <span style={{ fontSize: '0.8em', opacity: 0.6 }}>分钟</span>
@@ -364,42 +309,6 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
   const aboutContent = (
     <SettingsSection icon={<Info size={15} />} title='关于'>
       <div className="version-row"><span>当前版本</span><strong>v{appVersion}</strong></div>
-      <div className="settings-actions" style={{ marginTop: 8 }}>
-        {!updateInfo && (
-          <button className="primary" onClick={handleCheckUpdate} disabled={checkingUpdate}>
-            {checkingUpdate ? '检查中…' : '检查更新'}
-          </button>
-        )}
-        {updateInfo && !downloading && !downloadDone && (
-          <button className="primary" onClick={handleInstallUpdate}>
-            下载更新 v{updateInfo.version}
-          </button>
-        )}
-        {downloading && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ height: 6, borderRadius: 3, background: 'rgba(var(--fg), 0.1)', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', borderRadius: 3, background: 'var(--accent, #4f8cff)',
-                width: downloadProgress?.total ? `${Math.min(100, (downloadProgress.downloaded / downloadProgress.total) * 100).toFixed(1)}%` : '0%',
-                transition: downloadProgress?.total ? 'width 0.2s' : 'none',
-              }} />
-            </div>
-            <span style={{ fontSize: '0.8em', color: 'var(--muted)' }}>
-              {downloadProgress?.total
-                ? `${(downloadProgress.downloaded / 1024 / 1024).toFixed(1)} / ${(downloadProgress.total / 1024 / 1024).toFixed(1)} MB (${Math.min(100, (downloadProgress.downloaded / downloadProgress.total) * 100).toFixed(1)}%)`
-                : '正在下载更新…'}
-            </span>
-          </div>
-        )}
-        {downloadDone && <span className="configured"><CheckCircle2 size={17} />更新已下载，即将安装</span>}
-        {!updateInfo && !updateError && !checkingUpdate && <span className="configured muted-status">已是最新版本</span>}
-        {updateError && <span className="configured" style={{ color: 'var(--orange)' }}>⚠ {updateError}</span>}
-      </div>
-      {updateInfo && !downloading && !downloadDone && (
-        <div style={{ marginTop: 8 }}>
-          <p className="muted">v{updateInfo.version} {updateInfo.date ? `(${updateInfo.date})` : ""}</p>
-        </div>
-      )}
       <div style={{ marginTop: 12, fontSize: '0.75em', color: 'var(--text-faint)', wordBreak: 'break-all' }}>
         <span>配置文件：</span><span>{configPath}</span>
       </div>
@@ -416,41 +325,32 @@ export function SettingsPanel({ provider, onProviderChange, onBack, onUsageLoade
 
   return (
     <section className="settings-panel" data-testid="settings-panel">
-      <button className="floating-close settings-close" onClick={onBack} aria-label="返回主面板"><X size={20} /></button>
+      <header className="settings-header">
+        <h1>设置</h1>
+        <div className="header-actions">
+          <button className="header-close-btn" onClick={onBack} aria-label="返回主面板">
+            <X size={25} />
+          </button>
+          <span className="header-phantom" />
+        </div>
+      </header>
       <div className="settings-inner">
-        <header className="settings-header" data-tauri-drag-region>
-          <span className="settings-provider-title">DeepSeek / MiMo Monitor</span>
-          <div><p>设置</p></div>
-        </header>
 
         <div style={{ padding: '8px 0' }}>
           {categories.map((cat) => (
             <React.Fragment key={cat.key}>
               <button
+                className={`cat-btn${activeCategory === cat.key ? ' open' : ''}`}
                 onClick={() => setActiveCategory(activeCategory === cat.key ? null : cat.key)}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  width: '100%', padding: '12px 16px', border: 'none',
-                  background: activeCategory === cat.key ? 'rgba(var(--fg), 0.06)' : 'transparent',
-                  color: 'var(--text)', cursor: 'pointer',
-                  fontSize: '0.9em', borderRadius: 8, transition: 'background 0.15s',
-                }}
-                onMouseEnter={(e) => { if (activeCategory !== cat.key) e.currentTarget.style.background = 'rgba(var(--fg), 0.04)'; }}
-                onMouseLeave={(e) => { if (activeCategory !== cat.key) e.currentTarget.style.background = 'transparent'; }}
               >
-                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {cat.icon}
+                <span className="cat-btn-label">
+                  <span className="cat-icon">{cat.icon}</span>
                   <span>{cat.label}</span>
                 </span>
-                <ChevronRight size={14} style={{ opacity: 0.4, transform: activeCategory === cat.key ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
+                <ChevronDown size={14} className="cat-chevron" style={{ transform: activeCategory === cat.key ? 'rotate(180deg)' : 'rotate(0deg)' }} />
               </button>
-              <div style={{
-                display: 'grid',
-                gridTemplateRows: activeCategory === cat.key ? '1fr' : '0fr',
-                transition: 'grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
-                paddingLeft: 8, paddingRight: 8,
-              }}>
-                <div style={{ overflow: 'hidden', minHeight: 0 }}>
+              <div className={`cat-expand${activeCategory === cat.key ? ' open' : ''}`}>
+                <div className="cat-content">
                   {categoryContent[cat.key]}
                 </div>
               </div>
