@@ -2,6 +2,11 @@
 DeepSeekMonitorWindows/
 RAW_DeepSeekDesktopAssistant/
 RAW_MimoDesktopAssistant/
+sevnx/
+
+# Local handoff and project notes
+.handoff-round-corners.md
+PROJECT_STRUCTURE.md
 
 # 编译产物
 target/
