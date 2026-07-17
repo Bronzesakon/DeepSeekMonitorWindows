@@ -1,0 +1,230 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #app {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* html/#app 透明 → DWM 无阴影 */
+html, #app {
+  background: transparent !important;
+}
+
+#app {
+  position: relative;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  background: #fafafa;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+html.dark body {
+  background: #111111;
+}
+
+::selection {
+  background: rgba(79, 110, 247, 0.25);
+}
+.dark ::selection {
+  background: rgba(129, 140, 248, 0.30);
+}
+
+@layer components {
+  .glass-root {
+    overflow: hidden;
+  }
+
+  .glass-card {
+    @apply border rounded-lg;
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.08);
+  }
+
+  .glass-input {
+    @apply bg-gray-50/80 dark:bg-zinc-700/60
+           border border-gray-300 dark:border-zinc-500
+           rounded-lg outline-none
+           text-gray-800 dark:text-gray-100;
+  }
+}
+
+.dark .glass-card {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+body[data-win-version="10"] .glass-card,
+body[data-win-version="10"] .glass-input,
+body[data-win-version="10"] .rounded-lg,
+body[data-win-version="10"] .rounded-full,
+body[data-win-version="10"] .rounded-md {
+  border-radius: 0;
+}
+
+/* ─── Title Bar (DeepSeekMonitorWindows style) ─────────────────── */
+
+.title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  pointer-events: none;
+}
+
+.title-actions button {
+  pointer-events: auto;
+}
+
+.title-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(22, 42, 64, 0.82);
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
+}
+
+.title-btn:hover {
+  background: rgba(22, 42, 64, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(25, 48, 68, 0.12);
+}
+
+.title-btn.close-btn:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.10);
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.18);
+}
+
+.dark .title-btn {
+  color: rgba(255, 255, 255, 0.90);
+}
+
+.dark .title-btn:hover {
+  background: rgba(246, 239, 222, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(246, 239, 222, 0.12);
+}
+
+.dark .title-btn.close-btn:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 107, 0.24);
+}
+
+/* ─── Provider Toggle (DeepSeekMonitorWindows style) ──────────── */
+
+.provider-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(25, 48, 68, 0.18);
+  background: rgba(25, 48, 68, 0.04);
+  color: rgba(22, 42, 64, 0.70);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.provider-toggle:hover {
+  background: rgba(25, 48, 68, 0.08);
+  border-color: rgba(25, 48, 68, 0.28);
+  color: rgba(22, 42, 64, 0.92);
+}
+
+.provider-label {
+  font-weight: 800;
+}
+
+.provider-arrow {
+  font-size: 13px;
+  opacity: 0.5;
+}
+
+.dark .provider-toggle {
+  border-color: rgba(246, 239, 222, 0.18);
+  background: rgba(246, 239, 222, 0.06);
+  color: rgba(246, 239, 222, 0.62);
+}
+
+.dark .provider-toggle:hover {
+  background: rgba(246, 239, 222, 0.12);
+  border-color: rgba(246, 239, 222, 0.28);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.provider-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* ─── Settings scrollable area ──────────────────────────── */
+.settings-scroll-area {
+  overflow-y: auto;
+  max-height: calc(100vh - 48px);
+  padding-bottom: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(128, 128, 128, 0.3) transparent;
+}
+
+.settings-scroll-area::-webkit-scrollbar {
+  width: 5px;
+}
+
+.settings-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.3);
+  border-radius: 3px;
+}
+
+/* ─── Collapsed (docked) — RAW-style transparent glass ─────── */
+html.collapsed,
+html.collapsed #app,
+html.dark.collapsed,
+html.dark.collapsed #app {
+  background: transparent !important;
+}
+
+body.collapsed {
+  background: rgba(255, 255, 255, 0.3) !important;
+  backdrop-filter: blur(50px) saturate(1.4);
+  -webkit-backdrop-filter: blur(50px) saturate(1.4);
+  border-radius: 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+html.dark body.collapsed {
+  background: rgba(24, 24, 27, 0.3) !important;
+  backdrop-filter: blur(50px) saturate(1.4);
+  -webkit-backdrop-filter: blur(50px) saturate(1.4);
+  border-radius: 12px !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
