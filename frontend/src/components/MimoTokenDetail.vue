@@ -55,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useMimoDashboardStore as useDashboardStore } from "@/stores/mimo-dashboard";
 const store = useDashboardStore();
 
@@ -67,8 +67,13 @@ const tabs = [
 
 const activeTab = ref<"v25pro" | "v25" | "asr">("v25pro");
 
+watch(activeTab, (value) => {
+  if (value === "v25pro" || value === "v25") {
+    store.selectedDetailModel = value;
+  }
+});
+
 const detailData = computed(() => {
-  store.selectedDetailModel = activeTab.value as "v25pro" | "v25";
   return {
     cacheHit: store.detailTodayCacheHit,
     cacheMiss: store.detailTodayCacheMiss,

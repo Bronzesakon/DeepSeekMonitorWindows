@@ -55,6 +55,6 @@ const store = computed(() =>
 );
 
 const openBalanceCmd = computed(() =>
-  providerStore.activeProvider.value === "deepseek" ? "open_top_up_window" : "open_balance_page"
+  providerStore.activeProvider.value === "deepseek" ? "ds_open_top_up_window" : "open_balance_page"
 );
 </script>

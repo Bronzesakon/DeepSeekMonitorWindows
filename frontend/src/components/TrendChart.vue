@@ -28,8 +28,6 @@
         :x="tooltipX"
         :y="tooltipY"
         :data="store.trendChartData[hoveredIdx]"
-        :bar-index="hoveredIdx"
-        :total-bars="store.trendChartData.length"
       />
     </div>
   </div>
@@ -70,7 +68,7 @@ function showDetail(idx: number) {
   if (!point) return;
   const total = point.cacheHit + point.cacheMiss;
   const rate = total > 0 ? `${((point.cacheHit / total) * 100).toFixed(2)}%` : "--";
-  invoke("toggle_trend_detail", {
+  invoke("ds_toggle_trend_detail", {
     date: point.date,
     cacheHit: point.cacheHit,
     cacheMiss: point.cacheMiss,

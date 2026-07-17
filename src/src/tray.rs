@@ -322,7 +322,7 @@ pub async fn show_trend_detail_window(
         if let Ok(mut lock) = state.data.lock() {
             *lock = data;
         }
-        crate::windows::show_trend_detail(&app, date, 0, 0, 0, "0%", 0).await;
+        crate::windows::show_trend_detail(&app, date, 0, 0, 0, "0%", 0, 0).await;
     }
     Ok(())
 }

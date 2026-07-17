@@ -1,87 +1,69 @@
 @echo off
-chcp 65001 >nul 2>&1
-setlocal enabledelayedexpansion
-set PATH=%USERPROFILE%\.cargo\bin;%PATH%
+setlocal
+
+set "ROOT=%~dp0"
+set "PATH=%USERPROFILE%\.cargo\bin;%ProgramFiles%\nodejs;%PATH%"
+set "NODE_EXE=%ProgramFiles%\nodejs\node.exe"
+if not exist "%NODE_EXE%" set "NODE_EXE=node"
 
 echo ============================================
-echo   DeepSeekDesktopAssistant Release 构建
+echo   DeepSeekDesktopAssistant Release build
 echo ============================================
 echo.
 
-:: ─── 检查依赖 ───
-node --version >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [错误] 未检测到 Node.js，请先运行 install-deps.bat
-    pause
-    exit /b 1
-)
+"%NODE_EXE%" --version >nul 2>&1
+if errorlevel 1 goto :missing_node
 rustc --version >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [错误] 未检测到 Rust，请先运行 install-deps.bat
-    pause
-    exit /b 1
-)
-
-:: ─── 检查 tauri CLI ───
+if errorlevel 1 goto :missing_rust
 cargo tauri --version >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo [提示] 首次构建，安装 tauri-cli（约 2 分钟）...
-    cargo install tauri-cli --version "^2"
-    if %ERRORLEVEL% neq 0 (
-        echo [错误] tauri-cli 安装失败
-        pause
-        exit /b %ERRORLEVEL%
-    )
-)
+if errorlevel 1 goto :missing_tauri
 
-:: ─── 复制 WebView2Loader.dll ───
-echo [1/3] 准备资源文件...
-set "WEBVIEW_DLL=%~dp0src\target\release\WebView2Loader.dll"
-set "DEST_DLL=%~dp0src\WebView2Loader.dll"
-if exist "%WEBVIEW_DLL%" (
-    copy /y "%WEBVIEW_DLL%" "%DEST_DLL%" >nul
-    echo        WebView2Loader.dll 已复制
-) else (
-    echo        WebView2Loader.dll 使用现有副本
-)
-
-:: ─── 构建前端 ───
-echo.
-echo [2/3] 构建前端...
-cd /d "%~dp0frontend"
-call npx vue-tsc --noEmit
-if %ERRORLEVEL% neq 0 (
-    echo [错误] TypeScript 类型检查失败
-    pause
-    exit /b %ERRORLEVEL%
-)
-call npx vite build
-if %ERRORLEVEL% neq 0 (
-    echo [错误] 前端构建失败
-    pause
-    exit /b %ERRORLEVEL%
-)
-echo        前端构建完成
-
-:: ─── 构建后端 + NSIS 安装包 ───
-echo.
-echo [3/3] 构建后端并打包 NSIS 安装包...
-cd /d "%~dp0src"
-call cargo tauri build
-if %ERRORLEVEL% neq 0 (
-    echo [错误] 构建失败
-    pause
-    exit /b %ERRORLEVEL%
-)
+echo [1/3] Preparing resources...
+set "WEBVIEW_DLL=%ROOT%src\target\release\WebView2Loader.dll"
+set "DEST_DLL=%ROOT%src\WebView2Loader.dll"
+if exist "%WEBVIEW_DLL%" copy /y "%WEBVIEW_DLL%" "%DEST_DLL%" >nul
 
 echo.
-echo ============================================
-echo   构建完成！
-echo ============================================
+echo [2/3] Building frontend...
+pushd "%ROOT%frontend"
+"%NODE_EXE%" "node_modules\vue-tsc\bin\vue-tsc.js" --noEmit
+if errorlevel 1 goto :frontend_failed
+"%NODE_EXE%" "node_modules\vite\bin\vite.js" build
+if errorlevel 1 goto :frontend_failed
+popd
+
 echo.
-echo 可执行文件: src\target\release\DeepSeekDesktopAssistant.exe
-echo 安装包:    src\target\release\bundle\nsis\
+echo [3/3] Building Tauri release and NSIS bundle...
+pushd "%ROOT%src"
+cargo tauri build
+if errorlevel 1 goto :backend_failed
+popd
+
 echo.
-dir /b "target\release\bundle\nsis\*.exe" 2>nul
-echo.
-pause
+echo Release build completed.
+echo EXE: %ROOT%src\target\release\DeepSeekDesktopAssistant.exe
+echo NSIS: %ROOT%src\target\release\bundle\nsis\
+dir /b "%ROOT%src\target\release\bundle\nsis\*.exe" 2>nul
+exit /b 0
+
+:missing_node
+echo ERROR: Node.js was not found.
+exit /b 1
+
+:missing_rust
+echo ERROR: Rust was not found.
+exit /b 1
+
+:missing_tauri
+echo ERROR: tauri-cli was not found. Run: cargo install tauri-cli --version ^"^2^"
+exit /b 1
+
+:frontend_failed
+popd
+echo ERROR: frontend build failed.
+exit /b 1
+
+:backend_failed
+popd
+echo ERROR: Tauri release build failed.
+exit /b 1

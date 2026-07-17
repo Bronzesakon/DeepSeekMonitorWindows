@@ -82,7 +82,6 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { invoke } from "@tauri-apps/api/core";
 import { useThemeStore } from "@/stores/theme";
-import { useDashboardStore } from "@/stores/dashboard";
 import { useSettingsStore } from "@/stores/mimo-settings";
 import PlatformLoginSection from "@/components/PlatformLoginSection.vue";
 import RefreshIntervalPicker from "@/components/RefreshIntervalPicker.vue";
@@ -91,12 +90,10 @@ import ThemeIcon from "@/components/icons/ThemeIcon.vue";
 import CloseIcon from "@/components/icons/CloseIcon.vue";
 
 const theme = useThemeStore();
-const dashboard = useDashboardStore();
 const settings = useSettingsStore();
 const rootEl = ref<HTMLElement>();
 
 onMounted(async () => {
-  dashboard.refresh();
   settings.loadEdgeSnapEnabled();
   settings.loadRefreshInterval();
   settings.loadPaymentMode();

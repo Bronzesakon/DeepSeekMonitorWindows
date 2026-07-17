@@ -37,10 +37,21 @@ pub async fn mimo_refresh_data(
     api_state: tauri::State<'_, ApiState>,
 ) -> Result<DashboardData, String> {
     if api_state.is_refreshing.swap(true, Ordering::Acquire) {
-        return Err("refresh_in_progress".into());
+        return api_state.cached_data().ok_or_else(|| "refresh_in_progress".into());
     }
     let _guard = RefreshGuard::new(&api_state.is_refreshing);
-    perform_refresh(&storage, &api_state).await
+    let result = perform_refresh(&storage, &api_state).await;
+    if let Ok(ref data) = result {
+        api_state.cache_data(data);
+    }
+    result
+}
+
+#[tauri::command]
+pub fn mimo_get_cached_data(
+    api_state: tauri::State<'_, ApiState>,
+) -> Option<DashboardData> {
+    api_state.cached_data()
 }
 
 pub(crate) async fn perform_refresh(storage: &Storage, api_state: &ApiState) -> Result<DashboardData, String> {
@@ -450,6 +461,7 @@ pub(crate) async fn perform_refresh(storage: &Storage, api_state: &ApiState) -> 
         data.error_message = Some(errors.join("\n"));
     }
 
+    api_state.cache_data(&data);
     Ok(data)
 }
 
@@ -558,7 +570,9 @@ pub async fn mimo_toggle_trend_detail(
     output: i64,
     cache_hit_rate: String,
     cost: i64,
+    audio_duration: Option<i64>,
 ) -> Result<(), String> {
+    let audio_duration = audio_duration.unwrap_or(0);
     let new_data = serde_json::json!({
         "date": date,
         "cacheHit": cache_hit,
@@ -566,6 +580,7 @@ pub async fn mimo_toggle_trend_detail(
         "output": output,
         "cacheHitRate": cache_hit_rate,
         "cost": cost,
+        "audioDuration": audio_duration,
     });
 
     if let Some(detail_win) = app.get_webview_window("trend-detail") {
@@ -589,7 +604,7 @@ pub async fn mimo_toggle_trend_detail(
     if let Ok(mut data) = state.data.lock() {
         *data = new_data;
     }
-    crate::windows::show_trend_detail(&app, &date, cache_hit, cache_miss, output, &cache_hit_rate, cost).await;
+    crate::windows::show_trend_detail(&app, &date, cache_hit, cache_miss, output, &cache_hit_rate, cost, audio_duration).await;
     Ok(())
 }
 
@@ -707,7 +722,8 @@ pub async fn mimo_broadcast_refresh(
     let _guard = RefreshGuard::new(&api_state.is_refreshing);
     let result = perform_refresh(&storage, &api_state).await;
     if let Ok(data) = result {
-        let _ = app.emit("trigger-refresh", data);
+        api_state.cache_data(&data);
+        let _ = app.emit("mimo-trigger-refresh", data);
     }
     Ok(())
 }
@@ -734,7 +750,8 @@ pub async fn broadcast_payment_mode(
         let _guard = RefreshGuard::new(&api_state.is_refreshing);
         match perform_refresh(&storage, &api_state).await {
             Ok(data) => {
-                let _ = app.emit("trigger-refresh", &data);
+                api_state.cache_data(&data);
+                let _ = app.emit("mimo-trigger-refresh", &data);
             }
             Err(_e) => {
                 crate::debug_log!("[broadcast_payment_mode] 刷新失败: {}", _e);
@@ -832,10 +849,14 @@ pub async fn do_refresh(
     api_state: tauri::State<'_, ApiState>,
 ) -> Result<DashboardData, String> {
     if api_state.is_refreshing.swap(true, Ordering::Acquire) {
-        return Err("refresh_in_progress".into());
+        return api_state.cached_data().ok_or_else(|| "refresh_in_progress".into());
     }
     let _guard = RefreshGuard::new(&api_state.is_refreshing);
-    perform_refresh(&storage, &api_state).await
+    let result = perform_refresh(&storage, &api_state).await;
+    if let Ok(ref data) = result {
+        api_state.cache_data(data);
+    }
+    result
 }
 
 /// 内部版本：从 lib.rs 的定时器调用，不通过 Tauri command 系统
@@ -895,7 +916,7 @@ pub async fn show_trend_detail_window(
         if let Ok(mut lock) = state.data.lock() {
             *lock = data;
         }
-        crate::windows::show_trend_detail(&app, date, 0, 0, 0, "0%", 0).await;
+        crate::windows::show_trend_detail(&app, date, 0, 0, 0, "0%", 0, 0).await;
     }
     Ok(())
 }

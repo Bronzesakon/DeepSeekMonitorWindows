@@ -191,7 +191,9 @@ function onRootLeave() {
 }
 
 onMounted(async () => {
-  store.refresh();
+  const cached = await invoke<any | null>("mimo_get_cached_data").catch(() => null);
+  if (cached) store.applyData(cached);
+  else store.refresh();
   listen("detail-model-changed", (event: { payload: "v25pro" | "v25" }) => {
     store.selectedDetailModel = event.payload;
   });

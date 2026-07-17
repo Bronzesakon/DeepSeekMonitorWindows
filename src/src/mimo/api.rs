@@ -76,6 +76,7 @@ impl ApiError {
 pub struct ApiState {
     pub platform_cookies: Mutex<Option<String>>,
     pub is_refreshing: AtomicBool,
+    pub last_data: Mutex<Option<DashboardData>>,
 }
 
 impl ApiState {
@@ -83,11 +84,28 @@ impl ApiState {
         Self {
             platform_cookies: Mutex::new(None),
             is_refreshing: AtomicBool::new(false),
+            last_data: Mutex::new(None),
         }
     }
 
     pub fn has_platform_session(&self) -> bool {
         self.platform_cookies.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+    }
+
+    pub fn cached_data(&self) -> Option<DashboardData> {
+        self.last_data.lock().ok().and_then(|data| data.clone())
+    }
+
+    pub fn cache_data(&self, data: &DashboardData) {
+        if let Ok(mut cached) = self.last_data.lock() {
+            *cached = Some(data.clone());
+        }
+    }
+}
+
+impl Default for ApiState {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

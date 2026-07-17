@@ -6,50 +6,6 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use serde_json;
 
-/// Enable rounded corners on Windows 11 via DWM (DWMWA_WINDOW_CORNER_PREFERENCE = 33)
-#[cfg(target_os = "windows")]
-fn apply_win11_rounded_corners(hwnd: *mut std::ffi::c_void) {
-    #[link(name = "dwmapi")]
-    extern "system" {
-        fn DwmSetWindowAttribute(
-            hwnd: *mut std::ffi::c_void,
-            dwAttribute: u32,
-            pvAttribute: *const std::ffi::c_void,
-            cbAttribute: u32,
-        ) -> i32;
-    }
-    unsafe {
-        // DWM 原生圆角 —— 系统层面裁掉四个角，WebView2 白色底层一并裁除
-        let pref: u32 = 2; // DWMWCP_ROUND
-        DwmSetWindowAttribute(
-            hwnd,
-            33, // DWMWA_WINDOW_CORNER_PREFERENCE
-            &pref as *const _ as *const std::ffi::c_void,
-            std::mem::size_of::<u32>() as u32,
-        );
-        // 禁用非客户区渲染 —— 阻止 DWM 为圆角窗口附加默认投影
-        let policy: u32 = 1; // DWMNCRP_DISABLED
-        DwmSetWindowAttribute(
-            hwnd,
-            2, // DWMWA_NCRENDERING_POLICY
-            &policy as *const _ as *const std::ffi::c_void,
-            std::mem::size_of::<u32>() as u32,
-        );
-    }
-}
-
-pub fn apply_rounded_corners_to_all(app: &AppHandle) {
-    let labels = ["main", "settings", "widget", "trend-detail"];
-    for label in &labels {
-        if let Some(w) = app.get_webview_window(label) {
-            if let Ok(hwnd) = w.hwnd() {
-                #[cfg(target_os = "windows")]
-                apply_win11_rounded_corners(hwnd.0);
-            }
-        }
-    }
-}
-
 static LAST_MONITOR_COUNT: AtomicUsize = AtomicUsize::new(0);
 static MONITOR_CHANGING: AtomicBool = AtomicBool::new(false);
 
@@ -130,6 +86,8 @@ pub fn windows_shown(app: &AppHandle, label: &str) {
         let counter = app.state::<Arc<AtomicUsize>>();
         counter.fetch_add(1, Ordering::Release);
     }
+    drop(guard);
+    update_tray_menu_checks(app);
 }
 
 pub fn windows_hidden(app: &AppHandle, label: &str) {
@@ -139,6 +97,8 @@ pub fn windows_hidden(app: &AppHandle, label: &str) {
         let counter = app.state::<Arc<AtomicUsize>>();
         counter.fetch_sub(1, Ordering::Release);
     }
+    drop(guard);
+    update_tray_menu_checks(app);
 }
 
 fn register_visibility_tracking(win: &tauri::WebviewWindow) {
@@ -532,6 +492,7 @@ pub fn toggle_widget(app: &AppHandle) {
                     }
                 }
             }
+            emit_cached_snapshots(app);
             if !was_docked {
                 let _ = win.show();
                 let _ = win.set_focus();
@@ -539,27 +500,7 @@ pub fn toggle_widget(app: &AppHandle) {
             }
             windows_shown(app, "widget");
 
-            // 仿 RAW 做法：小组件显示后立即同步刷新数据，直接推送 trigger-refresh 事件
-            let app_clone = app.clone();
-            tauri::async_runtime::spawn(async move {
-                let storage = app_clone.state::<Arc<crate::Storage>>();
-
-                let ds_state = app_clone.state::<crate::ds::api::ApiState>();
-                if !ds_state.is_refreshing.swap(true, Ordering::Acquire) {
-                    let _guard = crate::ds::commands::RefreshGuard::new(&ds_state.is_refreshing);
-                    if let Ok(data) = crate::ds::commands::do_refresh(&storage, &ds_state).await {
-                        let _ = app_clone.emit("ds-trigger-refresh", data);
-                    }
-                }
-
-                let mimo_state = app_clone.state::<crate::mimo::api::ApiState>();
-                if !mimo_state.is_refreshing.swap(true, Ordering::Acquire) {
-                    let _guard = crate::mimo::commands::RefreshGuard::new(&mimo_state.is_refreshing);
-                    if let Ok(data) = crate::mimo::commands::do_refresh_inner(&storage, &mimo_state).await {
-                        let _ = app_clone.emit("mimo-trigger-refresh", data);
-                    }
-                }
-            });
+            // 数据由 WidgetView 的统一刷新入口读取；窗口显示本身不再发起重复网络请求。
         }
         update_tray_menu_checks(app);
         return;
@@ -582,12 +523,27 @@ pub fn toggle_widget(app: &AppHandle) {
             if let Some(pos) = saved_pos {
                 let _ = win.set_position(PhysicalPosition::new(pos.x, pos.y));
             }
+            emit_cached_snapshots(app);
             let _ = win.show();
             let _ = win.set_focus();
             windows_shown(app, "widget");
             update_tray_menu_checks(app);
         }
         Err(_) => {}
+    }
+}
+
+/// Push the last successful provider snapshots when the widget is shown.
+fn emit_cached_snapshots(app: &AppHandle) {
+    if let Some(state) = app.try_state::<crate::ds::api::ApiState>() {
+        if let Some(data) = state.cached_data() {
+            let _ = app.emit("ds-trigger-refresh", data);
+        }
+    }
+    if let Some(state) = app.try_state::<crate::mimo::api::ApiState>() {
+        if let Some(data) = state.cached_data() {
+            let _ = app.emit("mimo-trigger-refresh", data);
+        }
     }
 }
 
@@ -631,6 +587,7 @@ pub async fn show_trend_detail(
     output: i64,
     cache_hit_rate: &str,
     cost: i64,
+    audio_duration: i64,
 ) {
     // Ensure window exists, then show/update
     init_trend_detail(app);
@@ -649,6 +606,7 @@ pub async fn show_trend_detail(
         "output": output,
         "cacheHitRate": cache_hit_rate,
         "cost": cost,
+        "audioDuration": audio_duration,
     }));
 }
 

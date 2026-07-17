@@ -1,9 +1,9 @@
 <template>
-  <div ref="rootEl" :class="[collapsed ? 'px-5 pt-2 glass-root' : 'p-4 glass-root']" @mouseenter="onTitleEnter" @mouseleave="onRootLeave">
+  <div ref="rootEl" :class="[collapsed ? 'px-5 pt-2 glass-root' : 'p-4 glass-root', { 'widget-loading': !currentStore.hasLoaded }]" @mouseenter="onTitleEnter" @mouseleave="onRootLeave">
     <div data-tauri-drag-region :class="collapsed ? 'relative flex items-center justify-center mb-2' : 'title-bar mb-2'" @mouseenter="onTitleEnter" @mousedown="onTitleDown">
       <ProviderToggle v-if="!collapsed" />
       <span v-if="collapsed" class="inline-flex items-center text-sm font-semibold leading-none">
-        <template v-if="currentStore.hasPlatformSession">
+        <template v-if="currentStore.hasLoaded && currentStore.hasPlatformSession">
           <template v-if="activeProvider === 'mimo' && mimoSettings.paymentMode === 'plan'">
             <span class="text-sm text-gray-600 dark:text-gray-300">套餐</span>
             <span class="text-sm text-orange-500 dark:text-orange-400 ml-1">{{ (mimoStore.planUsagePercent ?? 0).toFixed(1) }}%</span>
@@ -19,7 +19,7 @@
           <span class="text-sm text-gray-600 dark:text-gray-300">命中率</span>
           <span class="text-sm text-purple-400 dark:text-purple-400 ml-1">{{ currentStore.detailTodayCacheHitRate }}</span>
         </template>
-        <span v-else class="text-gray-500 dark:text-gray-400">未登录 Platform</span>
+        <span v-else-if="currentStore.hasLoaded" class="text-gray-500 dark:text-gray-400">未登录 Platform</span>
       </span>
       <div v-if="!collapsed" class="title-actions">
         <button aria-label="刷新" class="title-btn refresh-btn" @click="currentStore.refresh()"><RefreshIcon /></button>
@@ -55,7 +55,7 @@
           <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium backdrop-blur-sm border border-white/20 dark:border-white/10" :class="dsStore.isAccountAvailable ? 'bg-green-500/10 text-green-700 dark:bg-green-500/15 dark:text-green-400' : 'bg-gray-500/10 text-gray-500 dark:text-gray-400'">
             <span>{{ dsStore.isAccountAvailable ? '✔' : '✖' }}</span><span>{{ dsStore.isAccountAvailable ? '可用' : '不可用' }}</span>
           </span>
-          <button @click="invoke('open_top_up_window')" class="inline-flex items-center justify-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 backdrop-blur-sm border border-white/20 dark:border-white/10 hover:bg-orange-500/20 transition-colors cursor-pointer">
+          <button @click="invoke('ds_open_top_up_window')" class="inline-flex items-center justify-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 backdrop-blur-sm border border-white/20 dark:border-white/10 hover:bg-orange-500/20 transition-colors cursor-pointer">
             <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
             <span class="leading-none">充值</span>
           </button>
@@ -212,8 +212,14 @@ onMounted(async () => {
     mimoSettings.loadSelectedDetailModel().then(val => { mimoStore.selectedDetailModel = val; }),
     mimoSettings.loadSelectedTrendModel().then(val => { mimoStore.selectedTrendModel = val; }),
   ]);
-  dsStore.refresh();
-  mimoStore.refresh();
+  const [dsSnapshot, mimoSnapshot] = await Promise.all([
+    invoke<any | null>("ds_get_cached_data"),
+    invoke<any | null>("mimo_get_cached_data"),
+  ]).catch(() => [null, null]);
+  if (dsSnapshot) dsStore.applyData(dsSnapshot);
+  else dsStore.refresh();
+  if (mimoSnapshot) mimoStore.applyData(mimoSnapshot);
+  else mimoStore.refresh();
 
   // DS events (RAW used "login-complete" and "trigger-refresh")
   listen("detail-model-changed", (event: { payload: any }) => {

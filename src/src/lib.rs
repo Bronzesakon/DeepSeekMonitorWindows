@@ -68,6 +68,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // DeepSeek commands (ds_ prefix)
             ds::commands::ds_refresh_data,
+            ds::commands::ds_get_cached_data,
             ds::commands::ds_mark_onboarding_completed,
             ds::commands::ds_open_login_window,
             ds::commands::ds_clear_platform_session,
@@ -79,6 +80,7 @@ pub fn run() {
             ds::commands::ds_open_top_up_window,
             // MiMo commands (mimo_ prefix)
             mimo::commands::mimo_refresh_data,
+            mimo::commands::mimo_get_cached_data,
             mimo::commands::mimo_mark_onboarding_completed,
             mimo::commands::mimo_open_login_window,
             mimo::commands::mimo_clear_platform_session,

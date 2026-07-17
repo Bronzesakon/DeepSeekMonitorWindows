@@ -44,7 +44,7 @@
             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium backdrop-blur-sm border border-white/20 dark:border-white/10" :class="dsStore.isAccountAvailable ? 'bg-green-500/10 text-green-700 dark:bg-green-500/15 dark:text-green-400' : 'bg-gray-500/10 text-gray-500 dark:text-gray-400'">
               <span>{{ dsStore.isAccountAvailable ? '✔' : '✖' }}</span><span>{{ dsStore.isAccountAvailable ? '可用' : '不可用' }}</span>
             </span>
-            <button @click="invoke('open_top_up_window')" class="inline-flex items-center justify-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 backdrop-blur-sm border border-white/20 dark:border-white/10 hover:bg-orange-500/20 transition-colors cursor-pointer">
+            <button @click="invoke('ds_open_top_up_window')" class="inline-flex items-center justify-center gap-1 text-xs px-2 py-1 rounded-full font-medium bg-orange-500/10 text-orange-600 dark:text-orange-400 backdrop-blur-sm border border-white/20 dark:border-white/10 hover:bg-orange-500/20 transition-colors cursor-pointer">
               <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
               <span class="leading-none">充值</span>
             </button>

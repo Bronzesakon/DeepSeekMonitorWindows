@@ -27,6 +27,10 @@
             <div class="text-[11px] font-medium text-purple-500 dark:text-purple-500 mb-0.5">命中率</div>
             <div class="text-xl font-bold text-purple-400 dark:text-purple-400">{{ cacheHitRate }}</div>
           </div>
+          <div v-if="audioDuration > 0" class="col-span-2">
+            <div class="text-[11px] font-medium text-cyan-500 dark:text-cyan-500 mb-0.5">音频转写时长</div>
+            <div class="text-xl font-bold text-cyan-400 dark:text-cyan-400">{{ formatDuration(audioDuration) }}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -34,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from "vue";
+import { ref, onMounted, onUnmounted, nextTick } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import { listen } from "@tauri-apps/api/event";
@@ -52,19 +56,23 @@ const output = ref(0);
 const cacheHitRate = ref("--");
 const dateTitle = ref("--");
 const dayCost = ref("0.00");
+const audioDuration = ref(0);
 
 const rootEl = ref<HTMLElement>();
+let unlistenDetail: (() => void) | null = null;
+let resizeObserver: ResizeObserver | null = null;
 
 function closeWindow() {
   getCurrentWindow().hide();
 }
 
-function applyData(payload: { date?: string; cacheHit: number; cacheMiss: number; output: number; cacheHitRate: string; cost?: number }) {
+function applyData(payload: { date?: string; cacheHit: number; cacheMiss: number; output: number; cacheHitRate: string; cost?: number; audioDuration?: number }) {
   cacheHit.value = payload.cacheHit;
   cacheMiss.value = payload.cacheMiss;
   output.value = payload.output;
   cacheHitRate.value = payload.cacheHitRate;
   dayCost.value = ((payload.cost ?? 0) / 100).toFixed(2);
+  audioDuration.value = payload.audioDuration ?? 0;
   if (payload.date) {
     // Format "2026-06-13" → "06-13"
     const parts = payload.date.split("-");
@@ -72,17 +80,27 @@ function applyData(payload: { date?: string; cacheHit: number; cacheMiss: number
   }
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}秒`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins < 60) return secs > 0 ? `${mins}分${secs}秒` : `${mins}分`;
+  const hours = Math.floor(mins / 60);
+  const remainMins = mins % 60;
+  return remainMins > 0 ? `${hours}时${remainMins}分` : `${hours}时`;
+}
+
 onMounted(async () => {
   // Pull initial data from shared state (avoids timing issues with emit)
   try {
-    const initial = await invoke<{ date?: string; cacheHit: number; cacheMiss: number; output: number; cacheHitRate: string; cost?: number }>("get_trend_detail_data");
+    const initial = await invoke<{ date?: string; cacheHit: number; cacheMiss: number; output: number; cacheHitRate: string; cost?: number; audioDuration?: number }>("get_trend_detail_data");
     if (initial && initial.cacheHitRate) {
       applyData(initial);
     }
   } catch (_) { /* ignore */ }
 
   // Listen for subsequent updates while window stays open
-  listen<{ date?: string; cacheHit: number; cacheMiss: number; output: number; cacheHitRate: string; cost?: number }>(
+  unlistenDetail = await listen<{ date?: string; cacheHit: number; cacheMiss: number; output: number; cacheHitRate: string; cost?: number; audioDuration?: number }>(
     "trend-detail-data",
     (event) => { applyData(event.payload); }
   );
@@ -94,7 +112,13 @@ onMounted(async () => {
       if (h > 0) getCurrentWindow().setSize(new LogicalSize(400, h));
     };
     resize();
-    new ResizeObserver(() => resize()).observe(rootEl.value);
+    resizeObserver = new ResizeObserver(() => resize());
+    resizeObserver.observe(rootEl.value);
   }
+});
+
+onUnmounted(() => {
+  unlistenDetail?.();
+  resizeObserver?.disconnect();
 });
 </script>

@@ -1,36 +1,39 @@
 <template>
-  <div
-    v-if="visible"
-    class="bar-tooltip"
-    :style="tooltipStyle"
-  >
-    <div class="bar-tooltip-head">
-      <span class="bar-tooltip-date">{{ data.date }}</span>
-      <strong>{{ data.tokens.toLocaleString() }} tokens</strong>
+  <Teleport to="body">
+    <div
+      v-if="visible"
+      ref="tooltipEl"
+      class="bar-tooltip"
+      :style="tooltipStyle"
+    >
+      <div class="bar-tooltip-head">
+        <span class="bar-tooltip-date">{{ data.date }}</span>
+        <strong>{{ data.tokens.toLocaleString() }} tokens</strong>
+      </div>
+      <span class="bar-tooltip-row">
+        <i class="dot hit" />缓存命中<strong>{{ data.cacheHit.toLocaleString() }} tokens</strong>
+      </span>
+      <span class="bar-tooltip-row">
+        <i class="dot miss" />缓存未命中<strong>{{ data.cacheMiss.toLocaleString() }} tokens</strong>
+      </span>
+      <span class="bar-tooltip-row">
+        <i class="dot response" />输出<strong>{{ data.output.toLocaleString() }} tokens</strong>
+      </span>
+      <span class="bar-tooltip-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1)">
+        缓存命中<strong>{{ hitRate }}</strong>
+      </span>
+      <span class="bar-tooltip-row">
+        费用<strong>¥{{ costFormatted }}</strong>
+      </span>
+      <span v-if="data.audioDuration > 0" class="bar-tooltip-row">
+        音频转写<strong>{{ formatDuration(data.audioDuration) }}</strong>
+      </span>
     </div>
-    <span class="bar-tooltip-row">
-      <i class="dot hit" />缓存命中<strong>{{ data.cacheHit.toLocaleString() }} tokens</strong>
-    </span>
-    <span class="bar-tooltip-row">
-      <i class="dot miss" />缓存未命中<strong>{{ data.cacheMiss.toLocaleString() }} tokens</strong>
-    </span>
-    <span class="bar-tooltip-row">
-      <i class="dot response" />输出<strong>{{ data.output.toLocaleString() }} tokens</strong>
-    </span>
-    <span class="bar-tooltip-row" style="margin-top: 4px; padding-top: 4px; border-top: 1px solid rgba(255,255,255,0.1)">
-      缓存命中<strong>{{ hitRate }}</strong>
-    </span>
-    <span class="bar-tooltip-row">
-      费用<strong>¥{{ costFormatted }}</strong>
-    </span>
-    <span v-if="data.audioDuration > 0" class="bar-tooltip-row">
-      音频转写<strong>{{ formatDuration(data.audioDuration) }}</strong>
-    </span>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import type { ChartDataPoint } from "@/types/models";
 
 const props = defineProps<{
@@ -38,44 +41,43 @@ const props = defineProps<{
   x: number;
   y: number;
   data: ChartDataPoint;
-  barIndex: number;
-  totalBars: number;
 }>();
 
-const tooltipStyle = computed(() => {
-  // Guess tooltip dimensions (will be refined after mount)
-  const estW = 190;
-  const estH = 160;
-  const margin = 8;
+const tooltipEl = ref<HTMLElement>();
+const position = ref({ left: 0, top: 0 });
 
-  let left = props.x;
-  let top = props.y - estH - margin;
+const tooltipStyle = computed(() => ({
+  left: `${position.value.left}px`,
+  top: `${position.value.top}px`,
+  position: "fixed" as const,
+  zIndex: 1000,
+}));
 
-  // Flip horizontally if would overflow right edge
-  if (left + estW > window.innerWidth - margin) {
-    left = Math.max(margin, window.innerWidth - estW - margin);
-  }
-  // Clamp left edge
-  if (left < margin) left = margin;
+function updatePosition() {
+  if (!props.visible) return;
+  nextTick(() => {
+    const rect = tooltipEl.value?.getBoundingClientRect();
+    if (!rect) return;
 
-  // Flip above if would overflow top
-  if (top < margin) {
-    top = props.y + margin;
-  }
+    const margin = 8;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const left = Math.min(
+      Math.max(margin, props.x - rect.width / 2),
+      Math.max(margin, width - rect.width - margin),
+    );
+    const above = props.y - rect.height - margin;
+    const below = props.y + margin;
+    const top = above >= margin
+      ? above
+      : Math.min(Math.max(margin, below), Math.max(margin, height - rect.height - margin));
 
-  return {
-    left: left + "px",
-    top: top + "px",
-    position: "fixed" as const,
-    zIndex: 1000,
-  };
-});
+    position.value = { left, top };
+  });
+}
 
-const alignClass = computed(() => {
-  if (props.barIndex <= 1) return "align-left";
-  if (props.barIndex >= props.totalBars - 2) return "align-right";
-  return "";
-});
+watch(() => [props.visible, props.x, props.y, props.data], updatePosition, { deep: true });
+onMounted(updatePosition);
 
 const hitRate = computed(() => {
   const total = props.data.cacheHit + props.data.cacheMiss;

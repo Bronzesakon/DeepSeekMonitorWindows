@@ -12,6 +12,7 @@
   },
   "bundle": {
     "active": true,
+    "useLocalToolsDir": true,
     "targets": ["nsis"],
     "resources": [
       "WebView2Loader.dll"

@@ -15,25 +15,48 @@ html, body, #app {
   overflow: hidden;
 }
 
-/* html/#app 透明 → DWM 无阴影 */
-html, #app {
+/* Keep the native transparent window visible outside the CSS-rounded surface. */
+html, body {
   background: transparent !important;
+}
+
+/* Clip every Win11 app surface at the WebView root, including main and widget. */
+html[data-win-version="11"] {
+  border-radius: 12px;
+  clip-path: inset(0 round 12px);
+}
+
+html[data-win-version="11"] #app {
+  border-radius: inherit;
+  overflow: hidden;
 }
 
 #app {
   position: relative;
+  overflow: hidden;
+  background: #fafafa;
+  border-radius: 12px;
+  clip-path: inset(0 round 12px);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  background: #fafafa;
-  border-radius: 12px;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  clip-path: none;
 }
-html.dark body {
+html.dark #app {
   background: #111111;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+html[data-win-version="10"] #app {
+  border-radius: 0;
+  clip-path: none;
 }
 
 ::selection {
@@ -44,8 +67,12 @@ html.dark body {
 }
 
 @layer components {
-  .glass-root {
+.glass-root {
     overflow: hidden;
+  }
+
+  .widget-loading {
+    visibility: hidden;
   }
 
   .glass-card {
@@ -78,9 +105,29 @@ body[data-win-version="10"] .rounded-md {
 /* ─── Title Bar (DeepSeekMonitorWindows style) ─────────────────── */
 
 .title-bar {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: 28px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+}
+
+/* Keep drag behavior on every empty part of the title row while preserving controls. */
+[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+}
+
+[data-tauri-drag-region] > *,
+[data-tauri-drag-region] button,
+[data-tauri-drag-region] a,
+[data-tauri-drag-region] input,
+[data-tauri-drag-region] select,
+[data-tauri-drag-region] textarea,
+.title-actions {
+  -webkit-app-region: no-drag;
 }
 
 .title-actions {
@@ -206,11 +253,12 @@ body[data-win-version="10"] .rounded-md {
   border-radius: 3px;
 }
 
-/* ─── Collapsed (docked) — RAW-style transparent glass ─────── */
-html.collapsed,
-html.collapsed #app,
-html.dark.collapsed,
-html.dark.collapsed #app {
+/* Docked bar: reuse the RAW acrylic surface and clip the WebView compositor layer. */
+html.collapsed {
+  background: transparent !important;
+}
+
+html.collapsed #app {
   background: transparent !important;
 }
 
@@ -219,12 +267,10 @@ body.collapsed {
   backdrop-filter: blur(50px) saturate(1.4);
   -webkit-backdrop-filter: blur(50px) saturate(1.4);
   border-radius: 12px !important;
+  clip-path: inset(0 round 12px);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 html.dark body.collapsed {
   background: rgba(24, 24, 27, 0.3) !important;
-  backdrop-filter: blur(50px) saturate(1.4);
-  -webkit-backdrop-filter: blur(50px) saturate(1.4);
-  border-radius: 12px !important;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
