@@ -650,7 +650,8 @@ pub async fn ds_open_top_up_window(
 
 // ── 开机启动注册表操作 ──
 
-const AUTOSTART_REG_VALUE_NAME: &str = "DeepSeekDesktopAssistant";
+const AUTOSTART_REG_VALUE_NAME: &str = "ModelMeter";
+const LEGACY_AUTOSTART_REG_VALUE_NAME: &str = "DeepSeekDesktopAssistant";
 
 fn read_autostart_registry() -> Option<String> {
     use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
@@ -660,7 +661,11 @@ fn read_autostart_registry() -> Option<String> {
         KEY_READ,
     )
     .ok()
-    .and_then(|key| key.get_value::<String, _>(AUTOSTART_REG_VALUE_NAME).ok())
+    .and_then(|key| {
+        key.get_value::<String, _>(AUTOSTART_REG_VALUE_NAME)
+            .or_else(|_| key.get_value::<String, _>(LEGACY_AUTOSTART_REG_VALUE_NAME))
+            .ok()
+    })
 }
 
 fn write_autostart_registry(exe_path: &str) -> Result<(), String> {
@@ -684,6 +689,7 @@ fn write_autostart_registry(exe_path: &str) -> Result<(), String> {
     };
     key.set_raw_value(AUTOSTART_REG_VALUE_NAME, &reg_value)
         .map_err(|e| format!("写入注册表失败: {}", e))?;
+    let _ = key.delete_value(LEGACY_AUTOSTART_REG_VALUE_NAME);
 
     // 轮询等待验证：杀毒软件可能弹窗让用户确认，最长等待 60 秒
     // 每 500ms 回读一次，直到验证通过或超时
@@ -713,11 +719,14 @@ fn delete_autostart_registry() -> Result<(), String> {
         )
         .map_err(|e| format!("无法打开注册表项: {}", e))?;
 
-    match key.delete_value(AUTOSTART_REG_VALUE_NAME) {
-        Ok(()) => Ok(()),
-        Err(e) if e.raw_os_error() == Some(2) => Ok(()), // ERROR_FILE_NOT_FOUND，已删除
-        Err(e) => Err(format!("删除注册表失败: {}", e)),
+    for name in [AUTOSTART_REG_VALUE_NAME, LEGACY_AUTOSTART_REG_VALUE_NAME] {
+        match key.delete_value(name) {
+            Ok(()) => {}
+            Err(e) if e.raw_os_error() == Some(2) => {}
+            Err(e) => return Err(format!("删除注册表失败: {}", e)),
+        }
     }
+    Ok(())
 }
 
 pub async fn get_auto_start() -> Result<bool, String> {

@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicepkg/vscode-tauri/main/schemas/tauri.conf.schema.json",
-  "productName": "DeepSeek Desktop Assistant",
+  "productName": "ModelMeter",
   "version": "3.0.0",
-  "identifier": "com.deepseek.monitor",
+  "identifier": "com.modelmeter.desktop",
   "build": {
     "frontendDist": "../frontend/dist"
   },

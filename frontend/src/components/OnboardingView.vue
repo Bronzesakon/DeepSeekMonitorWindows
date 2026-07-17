@@ -4,7 +4,7 @@
       <div class="glass-card p-5 flex flex-col justify-center" style="min-height: 300px">
         <div class="text-center mb-6">
           <h2 class="text-base font-bold text-gray-800 dark:text-gray-100">
-            欢迎使用 DeepSeek 桌面助手
+            欢迎使用 ModelMeter
           </h2>
           <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-10">
             登录 DeepSeek Platform 获取余额和用量数据

@@ -273,8 +273,11 @@ pub async fn get_auto_start() -> Result<bool, String> {
         let hkcu = winreg::RegKey::predef(HKEY_CURRENT_USER);
         Ok(hkcu.open_subkey_with_flags(r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", KEY_READ)
             .ok()
-            .and_then(|key| key.get_value::<String, _>("DeepSeekDesktopAssistant").ok())
-            .is_some())
+            .map(|key| {
+                key.get_value::<String, _>("ModelMeter").is_ok()
+                    || key.get_value::<String, _>("DeepSeekDesktopAssistant").is_ok()
+            })
+            .unwrap_or(false))
     }
     #[cfg(not(target_os = "windows"))]
     Ok(false)
@@ -290,13 +293,16 @@ pub async fn set_auto_start(enabled: bool) -> Result<(), String> {
             .map_err(|e| e.to_string())?;
         if enabled {
             let exe_path = std::env::current_exe().map_err(|e| e.to_string())?.to_string_lossy().to_string();
-            key.set_value("DeepSeekDesktopAssistant", &exe_path).map_err(|e| e.to_string())
+            key.set_value("ModelMeter", &exe_path).map_err(|e| e.to_string())
         } else {
-            match key.delete_value("DeepSeekDesktopAssistant") {
-                Ok(()) => Ok(()),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-                Err(e) => Err(e.to_string()),
+            for name in ["ModelMeter", "DeepSeekDesktopAssistant"] {
+                match key.delete_value(name) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(e.to_string()),
+                }
             }
+            Ok(())
         }
     }
     #[cfg(not(target_os = "windows"))]

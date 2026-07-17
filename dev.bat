@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 set PATH=%USERPROFILE%\.cargo\bin;%PATH%
 
 echo ============================================
-echo   DeepSeekDesktopAssistant Debug 构建并启动
+echo   ModelMeter Debug 构建并启动
 echo ============================================
 echo.
 
@@ -47,8 +47,8 @@ echo        前端构建完成
 echo.
 echo [3/3] 构建后端 (cargo build --debug)...
 cd /d "%~dp0src"
-del /f "target\debug\DeepSeekDesktopAssistant.exe" 2>nul
-cargo clean -p DeepSeekDesktopAssistant 2>nul
+del /f "target\debug\ModelMeter.exe" 2>nul
+cargo clean -p ModelMeter 2>nul
 call cargo build
 if %ERRORLEVEL% neq 0 (
     echo [错误] 后端构建失败
@@ -58,4 +58,4 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo 启动应用...
-start "" "target\debug\DeepSeekDesktopAssistant.exe"
+start "" "target\debug\ModelMeter.exe"

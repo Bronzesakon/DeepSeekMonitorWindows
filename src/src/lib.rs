@@ -36,12 +36,27 @@ pub struct RefreshNotifier {
     pub tx: watch::Sender<u64>,
 }
 
+const APP_DATA_DIR_NAME: &str = "ModelMeter";
+const LEGACY_APP_DATA_DIR_NAME: &str = "DeepSeekDesktopAssistant";
+
 pub fn run() {
     let storage = Arc::new(Storage::new());
 
     // 初始化 storage
     if let Ok(local_app_data) = std::env::var("LOCALAPPDATA") {
-        storage.init(std::path::PathBuf::from(local_app_data).join("DeepSeekDesktopAssistant"));
+        let app_data_root = std::path::PathBuf::from(local_app_data);
+        let current_dir = app_data_root.join(APP_DATA_DIR_NAME);
+        let legacy_dir = app_data_root.join(LEGACY_APP_DATA_DIR_NAME);
+        let data_dir = if current_dir.exists() || !legacy_dir.exists() {
+            current_dir
+        } else if std::fs::rename(&legacy_dir, &current_dir).is_ok() {
+            current_dir
+        } else {
+            // Keep reading the legacy directory if another process or a security
+            // tool prevents the one-time rename.
+            legacy_dir
+        };
+        storage.init(data_dir);
     }
 
     // 初始化刷新间隔 watch channel，默认 60 秒
@@ -128,7 +143,7 @@ pub fn run() {
                     "main",
                     tauri::WebviewUrl::App("index.html".into()),
                 )
-                .title("DeepSeek Desktop Assistant")
+                .title("ModelMeter")
                 .inner_size(400.0, 780.0)
                 .decorations(false)
                 .transparent(true)
