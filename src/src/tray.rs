@@ -49,6 +49,7 @@ pub fn setup(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         tray_builder = tray_builder.icon(icon.clone());
     }
     let tray = tray_builder
+        .tooltip(format!("ModelMeter v{}", env!("CARGO_PKG_VERSION")))
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(move |app, event| {
